@@ -1,0 +1,17 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="Not found" noindex>
+  <div class="nf">
+    <p class="eyebrow">Error 404</p>
+    <h1 class="display">Nothing posted here</h1>
+    <p class="lede">The address may be mistyped or incomplete. The home page is a good place to start.</p>
+    <p class="nf-links"><a class="btn" href="/">Home page</a></p>
+  </div>
+</Base>
+<style>
+  .nf { padding-block: 40px 80px; max-width: 760px; }
+  .nf h1 { margin-top: 12px; }
+  .nf .lede { margin-top: 18px; }
+  .nf-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+</style>

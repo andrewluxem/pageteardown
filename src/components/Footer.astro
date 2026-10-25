@@ -1,0 +1,23 @@
+---
+import wordmark from '../assets/brand/wordmark-on-light.svg';
+import { SITE, mailto } from '../config/site';
+---
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-brand">
+      <img class="footer-mark" src={wordmark.src} width={wordmark.width} height={wordmark.height} alt={SITE.name} />
+      <div class="footer-notes">
+        <p>Scores are commentary on brands' public homepages.</p>
+        <p>Not affiliated with any brand scored. Contact: <a href={mailto()}>{SITE.contactEmail}</a></p>
+      </div>
+    </div>
+    <ul>
+      <li><a href="/privacy/">Privacy</a></li>
+    </ul>
+  </div>
+</footer>
+<style>
+  .footer-mark { height: 28px; width: auto; margin-bottom: 10px; }
+  .footer-notes p + p { margin-top: 4px; }
+  .footer-notes a { display: inline-block; padding-block: 12px; margin-block: -12px; }
+</style>

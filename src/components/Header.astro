@@ -1,0 +1,33 @@
+---
+import wordmark from '../assets/brand/wordmark-on-dark.svg';
+
+// Empty until the board's pages exist. The nav and the mobile menu render
+// only when there is something to list.
+const items: { href: string; label: string; match: (p: string) => boolean }[] = [];
+const path = Astro.url.pathname;
+---
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href="/"><img src={wordmark.src} width={wordmark.width} height={wordmark.height} alt="Page Teardown, home" /></a>
+    {items.length > 0 && (
+      <nav class="nav-desktop" aria-label="Primary">
+        <ul class="nav-list">
+          {items.map((i) => <li><a href={i.href} aria-current={i.match(path) ? 'page' : undefined}>{i.label}</a></li>)}
+        </ul>
+      </nav>
+    )}
+    {items.length > 0 && (
+      <details class="menu">
+        <summary aria-label="Menu">
+          <svg class="icon-open" width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 5h18M2 11h18M2 17h18" /></svg>
+          <svg class="icon-close" width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4l14 14M18 4L4 18" /></svg>
+        </summary>
+        <nav aria-label="Primary, mobile">
+          <ul class="nav-list">
+            {items.map((i) => <li><a href={i.href} aria-current={i.match(path) ? 'page' : undefined}>{i.label}</a></li>)}
+          </ul>
+        </nav>
+      </details>
+    )}
+  </div>
+</header>

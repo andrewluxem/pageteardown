@@ -1,0 +1,15 @@
+---
+import SignupForm, { type SignupList } from './SignupForm.astro';
+
+interface Props {
+  list?: SignupList;
+  heading?: string;
+}
+const { list = 'newsletter', heading = 'Hear when the board launches' } = Astro.props;
+---
+<section class="card" aria-labelledby={`signup-heading-${list}`}>
+  <p class="eyebrow">Free, by email</p>
+  <h2 id={`signup-heading-${list}`} class="display" style="font-size: 1.75rem; margin-top: 6px;">{heading}</h2>
+  <p class="muted">One email when the first daily board goes live.</p>
+  <SignupForm list={list} />
+</section>
