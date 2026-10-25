@@ -1,0 +1,29 @@
+---
+import Base from '../layouts/Base.astro';
+import SignupForm from '../components/SignupForm.astro';
+import { SITE } from '../config/site';
+---
+<Base title="Watchlist" description="Join the waitlist for the Page Teardown Watchlist.">
+  <div class="with-rail">
+    <div class="main">
+      <p class="eyebrow">Watchlist · Waitlist open</p>
+      <h1 class="display wl-h1">Watch the homepages you compete with</h1>
+      <p class="lede wl-lede">The Watchlist is a paid plan that is not open yet. Join the waitlist to hear when it opens.</p>
+    </div>
+    <aside class="rail" aria-label="Join the waitlist">
+      <div class="card">
+        <p class="eyebrow">Price</p>
+        <p class="price num">{SITE.watchlistPrice}</p>
+        <p class="price-note">Planned launch price. Waitlist members get a founding rate.</p>
+        <p class="muted">Join the waitlist and we will email you when the Watchlist opens.</p>
+        <SignupForm list="watchlist" button="Join the waitlist" />
+      </div>
+    </aside>
+  </div>
+</Base>
+<style>
+  .wl-h1 { margin-top: 12px; max-width: 14ch; }
+  .wl-lede { margin-top: 18px; }
+  .price { font-family: var(--font-mono); font-weight: 600; font-size: 2.5rem; line-height: 1.1; margin-top: 6px; }
+  .card .price-note { margin-top: 6px; font-size: var(--text-sm); color: var(--muted); }
+</style>
