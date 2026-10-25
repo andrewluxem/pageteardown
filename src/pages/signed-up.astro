@@ -13,13 +13,13 @@ import { SITE, mailto } from '../config/site';
       <h1 class="display" style="margin-top: 12px;">You're signed up</h1>
       <p class="lede" style="margin-top: 18px;" data-list="">Thanks. Your address is on the list.</p>
       <p class="lede" style="margin-top: 18px;" data-list="newsletter" hidden>We'll email you when the daily board launches.</p>
-      <p class="lede" style="margin-top: 18px;" data-list="watchlist" hidden>You're on the Watchlist waitlist. We'll email you when the Watchlist opens.</p>
+      <p class="lede" style="margin-top: 18px;" data-list="watchlist" hidden>You're on the list. One email when the Watchlist opens.</p>
       <p class="lede" style="margin-top: 18px;" data-list="bfcm" hidden>We'll email you the day the first tracked brand starts Black Friday.</p>
       <p class="muted" style="margin-top: 18px;">Changed your mind? Email <a href={mailto('Remove my signup')}>{SITE.contactEmail}</a> and we'll remove your address.</p>
     </div>
     <div data-state="error" hidden>
       <h1 class="display" style="margin-top: 12px;">That didn't work</h1>
-      <p class="lede" style="margin-top: 18px;">Something went wrong, try again or email <a href={mailto('Signup problem')}>{SITE.contactEmail}</a>.</p>
+      <p class="lede" style="margin-top: 18px;">That did not go through. Try again, or email <a href={mailto('Signup problem')}>{SITE.contactEmail}</a>.</p>
     </div>
     <p style="margin-top: 28px;"><a class="btn" href="/">Back to the home page</a></p>
   </div>
