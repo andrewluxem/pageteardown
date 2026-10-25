@@ -1,5 +1,6 @@
 ---
 import { SIGNUP_ENDPOINT } from '../config/signup';
+import { SITE, mailto } from '../config/site';
 
 export type SignupList = 'newsletter' | 'watchlist' | 'bfcm';
 
@@ -10,8 +11,10 @@ interface Props {
   id?: string;
 }
 const { list = 'newsletter', button = 'Sign up', id = `signup-${list}` } = Astro.props;
-// Unset endpoint: JS shows "Signups open soon" inline; without JS the form
-// lands on a static page that says the same thing.
+// Unset endpoint: the email field and button render disabled, with a note to
+// email instead, so nothing can be sent. The action still points at a static
+// page that says nothing was sent, as a fallback.
+const live = Boolean(SIGNUP_ENDPOINT);
 const action = SIGNUP_ENDPOINT ?? '/signups-soon/';
 const method = SIGNUP_ENDPOINT ? 'post' : 'get';
 // Small print under the form: what each list sends and how often.
@@ -21,12 +24,18 @@ const NOTES: Record<SignupList, string> = {
   bfcm: 'One email, the day the first tracked brand starts Black Friday. Unsubscribe anytime.',
 };
 const note = NOTES[list];
+// Shown in place of a working form while the endpoint is unset.
+const CLOSED: Record<SignupList, string> = {
+  newsletter: 'Signups open shortly.',
+  watchlist: 'Waitlist opens shortly.',
+  bfcm: 'Signups open shortly.',
+};
 // The page this form is on, fixed at build time. The endpoint stores it and
 // sends an invalid address back here (the Referer can't be relied on: the
 // site's Referrer-Policy sends only the origin cross-site).
 const source = Astro.url.pathname;
 ---
-<form class="signup" action={action} method={method} data-signup data-live={SIGNUP_ENDPOINT ? 'true' : 'false'}>
+<form class="signup" action={action} method={method} data-signup data-live={live ? 'true' : 'false'}>
   <input type="hidden" name="list" value={list} />
   <input type="hidden" name="source" value={source} />
   <!-- Honeypot: off-screen, out of the tab order and hidden from assistive tech. Bots fill it; the endpoint drops those. -->
@@ -36,16 +45,19 @@ const source = Astro.url.pathname;
   </div>
   <div class="field">
     <label for={`${id}-email`}>Email address</label>
-    <input id={`${id}-email`} type="email" name="email" autocomplete="email" required placeholder="you@company.com" />
-    <button class="btn btn--accent" type="submit">{button}</button>
+    <input id={`${id}-email`} type="email" name="email" autocomplete="email" required placeholder="you@company.com" disabled={!live} />
+    <button class="btn" type="submit" disabled={!live}>{button}</button>
   </div>
+  {!live && <p class="form-closed">{CLOSED[list]} Email <a href={mailto()}>{SITE.contactEmail}</a> to be added.</p>}
   <p class="form-status" role="status" aria-live="polite"></p>
   <p class="form-note">{note} <a href="/privacy/">Privacy</a>.</p>
 </form>
 <style>
+  .form-closed { margin-top: 10px; font-size: var(--text-sm); }
   .form-note { margin-top: 10px; font-size: 0.8125rem; color: var(--muted); }
   :global(.dark) .form-note { color: var(--on-dark-muted); }
-  .form-note a { color: inherit; }
+  .form-closed a, .form-note a { color: inherit; }
+  .field :disabled { cursor: not-allowed; opacity: 0.6; }
   .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 </style>
 <script>
@@ -54,16 +66,10 @@ const source = Astro.url.pathname;
     invalid: "That email address doesn't look right.",
   };
   const message = outcomes[new URLSearchParams(location.search).get('signup') ?? ''];
-  for (const form of document.querySelectorAll<HTMLFormElement>('form[data-signup]')) {
-    if (form.dataset.live === 'true') {
+  if (message) {
+    for (const form of document.querySelectorAll<HTMLFormElement>('form[data-signup][data-live="true"]')) {
       const status = form.querySelector<HTMLElement>('.form-status');
-      if (message && status) status.textContent = message;
-      continue;
+      if (status) status.textContent = message;
     }
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const status = form.querySelector<HTMLElement>('.form-status');
-      if (status) status.textContent = 'Signups open soon. Nothing was sent.';
-    });
   }
 </script>
