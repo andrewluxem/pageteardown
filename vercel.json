@@ -6,7 +6,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'sha256-WnYFWC0hpUnb2Cygk/asxia5smcpAnfCd4lIEAoGX3U=' 'sha256-o38oXzO4c2iT5Ighpvg1bDI3xAdM0Dn5yw4sye/KDRk='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self' https://fpqyuzkrshokqxtjtffi.supabase.co; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+          "value": "default-src 'self'; script-src 'self' 'sha256-GregdPOt5ro96xi3MMjvmD561MUAc1HNb6IdoZR4b6E=' 'sha256-WnYFWC0hpUnb2Cygk/asxia5smcpAnfCd4lIEAoGX3U=' 'sha256-o38oXzO4c2iT5Ighpvg1bDI3xAdM0Dn5yw4sye/KDRk='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self' https://fpqyuzkrshokqxtjtffi.supabase.co; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
         },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         { "key": "X-Content-Type-Options", "value": "nosniff" }
