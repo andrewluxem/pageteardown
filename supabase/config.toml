@@ -1,0 +1,9 @@
+# Only what this repo relies on; the Supabase CLI fills in its defaults.
+# The function and table live in the shared content-pipeline project
+# (fpqyuzkrshokqxtjtffi): supabase link --project-ref fpqyuzkrshokqxtjtffi.
+project_id = "pageteardown"
+
+# The site's signup form posts without a Supabase key; the function checks
+# Origin itself. Deploy with --no-verify-jwt to match.
+[functions.pageteardown-signup]
+verify_jwt = false

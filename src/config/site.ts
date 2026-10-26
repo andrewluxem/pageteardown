@@ -25,6 +25,10 @@ export const SITE = {
   tagline: 'Retail homepages, scored',
   timezone: 'America/Denver',
   timezoneLabel: 'MT',
+  // The planned monthly price as display text, shown as is on /watchlist/
+  // (src/pages/watchlist.astro) with "Planned launch price..." under it;
+  // nothing else reads it.
+  watchlistPrice: '$39/mo',
 };
 
 export const SITE_HOST = new URL(SITE.siteUrl).host;
