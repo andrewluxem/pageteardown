@@ -52,8 +52,23 @@ Kept for the daily board, still typed to the email contract until the homepage c
 Generic and ready: `ScoreBadge`, `Legend`, `Pips`, `SignupForm`, `SignupCard`, `src/lib/dates.ts`,
 `src/lib/og.ts`, `src/lib/site-tokens.ts`, `src/config/industries.ts` (shared registry keys).
 
-The signup forms post to `PUBLIC_SIGNUP_ENDPOINT`. While it is unset they show "Signups open
-soon" and nothing is sent.
+The signup forms post to `PUBLIC_SIGNUP_ENDPOINT`. While it is unset they render disabled, with a
+note to email the contact address instead, and nothing is sent.
+
+## Watchlist waitlist
+
+`/watchlist/` collects waitlist signups for the paid plan.
+
+The form posts to the `pageteardown-signup` Supabase edge function
+(`supabase/functions/pageteardown-signup/`), which writes `pageteardown_signups`
+(`supabase/migrations/`). Both live in the shared content-pipeline project
+(`fpqyuzkrshokqxtjtffi`), apart from Inbox Teardown's and Social Teardown's tables, and every row
+has `list = 'page-watchlist'`. `PUBLIC_SIGNUP_ENDPOINT` is
+`https://fpqyuzkrshokqxtjtffi.supabase.co/functions/v1/pageteardown-signup`, and that origin is
+the one `form-action` allows in `vercel.json`.
+
+Deploy the function with `supabase functions deploy pageteardown-signup --no-verify-jwt` and
+apply migrations before any function change that needs them.
 
 ## Commands
 

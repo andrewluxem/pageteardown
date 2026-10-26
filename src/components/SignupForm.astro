@@ -2,7 +2,9 @@
 import { SIGNUP_ENDPOINT } from '../config/signup';
 import { SITE, mailto } from '../config/site';
 
-export type SignupList = 'newsletter' | 'watchlist' | 'bfcm';
+// page-watchlist is the only list the signup function accepts
+// (supabase/functions/pageteardown-signup/rules.ts).
+export type SignupList = 'newsletter' | 'page-watchlist' | 'bfcm';
 
 interface Props {
   /** Hidden `list` value sent with the signup. */
@@ -20,14 +22,14 @@ const method = SIGNUP_ENDPOINT ? 'post' : 'get';
 // Small print under the form: what each list sends and how often.
 const NOTES: Record<SignupList, string> = {
   newsletter: 'One email when the daily board launches. Unsubscribe anytime.',
-  watchlist: 'One email when the Watchlist opens, and nothing before that. Unsubscribe anytime.',
+  'page-watchlist': 'One email when the Watchlist opens, and nothing before that. Unsubscribe anytime.',
   bfcm: 'One email, the day the first tracked brand starts Black Friday. Unsubscribe anytime.',
 };
 const note = NOTES[list];
 // Shown in place of a working form while the endpoint is unset.
 const CLOSED: Record<SignupList, string> = {
   newsletter: 'Signups open shortly.',
-  watchlist: 'Waitlist opens shortly.',
+  'page-watchlist': 'Waitlist opens shortly.',
   bfcm: 'Signups open shortly.',
 };
 // The page this form is on, fixed at build time. The endpoint stores it and
