@@ -5,15 +5,18 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { parse } from 'yaml';
 import { SITE, SITE_HOST } from '../src/config/site.ts';
+import { RUBRIC_VERSION } from '../src/config/rubric.ts';
 import {
   checkAndrewAnywhere,
   checkAndrewMarkers,
   checkCspHashes,
+  checkDraftNoindex,
   checkFixtureBrands,
+  checkFixtureContent,
   checkFooterContact,
   checkOgImages,
   checkPlaceholders,
-  senderCopyBrackets,
+  pageCopyBrackets,
   checkPrivacyPage,
   checkRobots,
   checkScriptHosts,
@@ -60,10 +63,12 @@ const rules: [string, Failure[]][] = [
   ['No third-party scripts (only the site and Vercel insights)', checkScriptHosts(pages, SITE_HOST)],
   ['Every inline script is allowed by the vercel.json CSP', checkCspHashes(pages, csp)],
   ['No TODO(andrew) left in src/', checkTodos(srcFiles)],
-  ['No bracketed placeholders in built pages', checkPlaceholders(pages, senderCopyBrackets(boards))],
+  ['No bracketed placeholders in built pages', checkPlaceholders(pages, pageCopyBrackets(boards))],
   ['No [ANDREW: ...] markers in src/ or built pages', checkAndrewMarkers(srcFiles, pages)],
   ['No "[ANDREW" anywhere under src/', checkAndrewAnywhere(allSrcFiles)],
   ['No fixture brands in src/content/', checkFixtureBrands(contentFiles)],
+  ['No fixture content in built pages', checkFixtureContent(pages)],
+  [`Board pages are noindex while the rubric is a draft (${RUBRIC_VERSION})`, checkDraftNoindex(pages, RUBRIC_VERSION)],
   ['Privacy page is built', checkPrivacyPage(pages)],
   ['PUBLIC_SIGNUP_ENDPOINT set at build time', checkSignupEndpoint(pages)],
   ['robots.txt allows crawling', checkRobots(existsSync(robotsPath) ? readFileSync(robotsPath, 'utf8') : undefined)],
