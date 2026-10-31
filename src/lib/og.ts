@@ -103,4 +103,6 @@ export function pngResponse(png: Uint8Array): Response {
 export const ogPath = {
   // Static brand card from public/ (src/assets/brand/og-default.svg is its master).
   default: '/og-default.png',
+  // One card per scorecard (src/pages/og/page/[id].png.ts).
+  page: (id: string) => `/og/page/${id}.png`,
 };

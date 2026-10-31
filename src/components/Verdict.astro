@@ -1,0 +1,45 @@
+---
+// The verdict block: band, total, the capping and lowest dimensions, the
+// rubric tag and any correction. Shared by the scorecard and the brand page.
+import { BANDS, DIMENSIONS, RUBRIC_TAG, TOTAL_MAX } from '../config/rubric';
+import { formatMedium } from '../lib/dates';
+import { cappingDimension, lowestDimension, score } from '../lib/scoring';
+import type { Homepage } from '../lib/schemas';
+
+interface Props {
+  page: Homepage;
+  /** id for the band word, which labels the section. */
+  id?: string;
+}
+const { page, id = 'verdict-word' } = Astro.props;
+const s = score(page);
+const cap = cappingDimension(page);
+const low = lowestDimension(page);
+---
+<section class="verdict dark" aria-labelledby={id}>
+  <p class="eyebrow">Verdict · {RUBRIC_TAG}</p>
+  <div class="verdict-row">
+    <p id={id} class="display verdict-word">{BANDS[s.band].label}</p>
+    <p class="verdict-total num" aria-label={`${s.total} out of ${TOTAL_MAX}`}>{s.total}<span>/{TOTAL_MAX}</span></p>
+  </div>
+  <dl class="verdict-facts">
+    {cap && (
+      <div><dt class="eyebrow">Capped by</dt><dd>{DIMENSIONS[cap]} scored 1, which caps the page regardless of its total.</dd></div>
+    )}
+    <div><dt class="eyebrow">Lowest dimension</dt><dd>{DIMENSIONS[low]}, <span class="num">{page.dimensions[low].score}/5</span></dd></div>
+  </dl>
+  {page.correction && (
+    <p class="verdict-correction"><span class="mono">Corrected {formatMedium(page.correction.date)}:</span> {page.correction.note}</p>
+  )}
+</section>
+<style>
+  .verdict { padding: 22px 22px 24px; }
+  .verdict-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 8px 24px; margin-top: 10px; }
+  .verdict-word { font-size: clamp(3rem, 2rem + 4vw, 4.5rem); }
+  .verdict-total { font-family: var(--font-mono); font-weight: 600; font-size: clamp(2.5rem, 2rem + 2vw, 3.25rem); line-height: 1; }
+  .verdict-total span { color: var(--on-dark-muted); font-size: 0.5em; }
+  .verdict-facts { margin-top: 16px; display: grid; gap: 10px; }
+  .verdict-facts dd { margin-top: 2px; color: var(--on-dark); }
+  .verdict-correction { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--ink-2); color: var(--on-dark); font-size: var(--text-sm); }
+  .verdict-correction .mono { color: var(--accent-on-dark); font-weight: 600; text-transform: uppercase; font-size: 0.8125rem; }
+</style>

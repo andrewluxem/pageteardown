@@ -1,0 +1,116 @@
+---
+// /methodology/, built only once a board exists (a rest route with one path,
+// so it can return none). Every question, anchor and rule below is read from
+// the rubric markdown (src/lib/rubric-doc.ts); this file only adds headings
+// and short connecting sentences.
+import type { GetStaticPaths } from 'astro';
+import Base from '../../layouts/Base.astro';
+import { CAPPING_DIMENSIONS, DIMENSIONS, DIMENSION_KEYS, RUBRIC_TAG, type DimensionKey } from '../../config/rubric';
+import { SITE, mailto } from '../../config/site';
+import { hasBoard } from '../../lib/content';
+import { loadRubric, plain, publicText } from '../../lib/rubric-doc';
+
+export const getStaticPaths = (async () => ((await hasBoard()) ? [{ params: { path: undefined } }] : [])) satisfies GetStaticPaths;
+
+const rubric = loadRubric();
+const bySlug = new Map(rubric.dimensions.map((d) => [d.slug, d]));
+const dims = DIMENSION_KEYS.map((k: DimensionKey) => {
+  const d = bySlug.get(k);
+  if (!d) throw new Error(`The rubric markdown has no dimension "${k}"`);
+  return { key: k, name: DIMENSIONS[k], ...d };
+});
+const capture = rubric.sentence('Status', 'phone-size screenshot').replace(/^[^:]*:\s*/, '');
+const scoring = rubric.sentence('Status', 'Scoring is a separate layer');
+const order = rubric.sentence('The eight dimensions', 'first-time visitor meets');
+const forced = rubric.checks.filter((c) => c.effect === 'Forces 1');
+const unverified = rubric.checks.find((c) => c.check.startsWith('Primary CTA link'));
+if (!unverified) throw new Error('The rubric markdown has no "Primary CTA link" check');
+const logged = rubric.sentence('Board and methodology page', 'never changed silently');
+---
+<Base title="Methodology" description="How Page Teardown scores homepages: eight dimensions, each 1 to 5, and a hard-fail rule." boardPage>
+  <div class="method">
+    <p class="eyebrow">{RUBRIC_TAG}</p>
+    <h1 class="display">How scores work</h1>
+    <p class="lede intro">How every homepage on the board is scored.</p>
+
+    <section class="section" aria-labelledby="what-heading">
+      <h2 id="what-heading" class="eyebrow">What is scored</h2>
+      <div class="prose">
+        <p>The capture: {capture}</p>
+        <p>{scoring}</p>
+        <p>Only the first screen is scored, as it shows on a phone before any scrolling. {order}</p>
+        <p>Until the rubric has been checked against hand scores, every score is labelled "{RUBRIC_TAG}".</p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="dims-heading">
+      <h2 id="dims-heading" class="eyebrow">The eight dimensions</h2>
+      <div class="prose"><p>{plain(rubric.rule('Scoring rules', 'Scale'))}</p></div>
+      <ol class="dims">
+        {dims.map((d, i) => (
+          <li class="card dim">
+            <div class="dim-head">
+              <span class="num muted">{String(i + 1).padStart(2, '0')}</span>
+              <h3 class="dim-name">{d.name}</h3>
+              <span class="mono scale">1 to 5{CAPPING_DIMENSIONS.includes(d.key) && <strong class="accent"> · a 1 caps the page</strong>}</span>
+            </div>
+            <p class="dim-question">{d.question}</p>
+            <dl class="anchors">
+              {([5, 3, 1] as const).map((n) => (
+                <div><dt class="num">{n}</dt><dd>{d.anchors[n]}</dd></div>
+              ))}
+            </dl>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <section class="section" aria-labelledby="bands-heading">
+      <h2 id="bands-heading" class="eyebrow">Bands</h2>
+      <div class="prose"><p>{plain(rubric.rule('Scoring rules', 'Bands'))}</p></div>
+    </section>
+
+    <section class="section" aria-labelledby="fail-heading">
+      <h2 id="fail-heading" class="eyebrow">The hard-fail rule</h2>
+      <div class="prose">
+        <p>{plain(rubric.rule('Scoring rules', 'Hard fail'))}</p>
+        <ul>
+          {forced.map((c) => <li>{publicText(c.check, 'Forces 1 check')} <span class="mono muted">({c.dimension})</span></li>)}
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="unverified-heading">
+      <h2 id="unverified-heading" class="eyebrow">Unverified checks</h2>
+      <div class="prose">
+        <p>A check that could not reach a verdict shows as Not verified on the scorecard. For links: {publicText(unverified.notes, 'Primary CTA link notes')}.</p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="corrections-heading">
+      <h2 id="corrections-heading" class="eyebrow">Corrections</h2>
+      <div class="prose">
+        <p>Think we got this wrong? Email <a href={mailto('Score question')}>{SITE.contactEmail}</a>. We reply within 2 business days and fix confirmed errors within 7. {logged}</p>
+      </div>
+    </section>
+  </div>
+</Base>
+<style>
+  .method { max-width: 880px; }
+  .method h1 { margin-top: 12px; }
+  .intro { margin-top: 18px; }
+  .section > h2.eyebrow { margin-bottom: 10px; }
+  .dims { list-style: none; padding: 0; margin-top: 16px; display: grid; gap: 12px; max-width: var(--measure); }
+  .dim { padding: 18px 20px; }
+  .dim-head { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; }
+  .dim-name { font-size: 1.0625rem; margin: 0; }
+  .scale { font-size: 0.8125rem; text-align: right; }
+  .dim-question { margin-top: 8px; font-weight: 500; }
+  .anchors { margin-top: 10px; display: grid; gap: 6px; }
+  .anchors > div { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; font-size: var(--text-sm); color: var(--ink-2); }
+  .anchors dt { font-weight: 600; color: var(--ink); }
+  @media (max-width: 520px) {
+    .dim-head { grid-template-columns: 28px minmax(0, 1fr); }
+    .scale { grid-column: 2; text-align: left; }
+  }
+</style>

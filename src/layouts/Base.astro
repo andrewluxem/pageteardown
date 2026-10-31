@@ -11,6 +11,8 @@ import Analytics from '@vercel/analytics/astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { SITE } from '../config/site';
+import { fixturesEnabled } from '../config/board';
+import { RUBRIC_IS_DRAFT } from '../config/rubric';
 import { OG_HEIGHT, OG_WIDTH, ogPath } from '../lib/og';
 
 interface Props {
@@ -20,9 +22,14 @@ interface Props {
   ogType?: 'website' | 'article';
   /** Site-relative path to a 1200x630 PNG; defaults to the site card. */
   ogImage?: string;
+  /** A page of the board (board, scorecard, brand, methodology): noindex while the rubric is a draft. */
+  boardPage?: boolean;
 }
 
-const { title, description = SITE.description, noindex = false, ogType = 'website', ogImage = ogPath.default } = Astro.props;
+const { title, description = SITE.description, noindex: noindexProp = false, ogType = 'website', ogImage = ogPath.default, boardPage = false } = Astro.props;
+const noindex = noindexProp || (boardPage && RUBRIC_IS_DRAFT);
+// Fixture builds (dev:fixtures, Vercel previews) say so on every page.
+const fixtures = fixturesEnabled();
 const fullTitle = title ? `${title} | ${SITE.name}` : `${SITE.name} | ${SITE.tagline}`;
 const canonical = new URL(Astro.url.pathname, SITE.siteUrl);
 const ogImageUrl = new URL(ogImage, SITE.siteUrl);
@@ -56,8 +63,13 @@ const ogImageUrl = new URL(ogImage, SITE.siteUrl);
     <meta name="theme-color" content="#121316" />
     <Analytics />
   </head>
-  <body>
+  <body data-board-page={boardPage ? '' : undefined}>
     <a class="skip-link" href="#main">Skip to content</a>
+    {fixtures && (
+      <div class="banner" data-pt-fixture role="note">
+        <div class="wrap">Fixture build: placeholder brands and scores, not real data</div>
+      </div>
+    )}
     <slot name="banner" />
     <Header />
     <main id="main" class="wrap">

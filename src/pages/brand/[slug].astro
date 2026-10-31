@@ -1,0 +1,118 @@
+---
+// A brand's last 30 nights: a filmstrip of scored nights (each linking to its
+// scorecard) with the nights it was not captured shown as gaps, then the
+// latest scorecard's summary. Published from the brand's first scored night.
+import type { GetStaticPaths } from 'astro';
+import Base from '../../layouts/Base.astro';
+import Verdict from '../../components/Verdict.astro';
+import DimensionList from '../../components/DimensionList.astro';
+import WatchlistCard from '../../components/WatchlistCard.astro';
+import { BANDS, TOTAL_MAX } from '../../config/rubric';
+import { verticalLabel } from '../../config/verticals';
+import { brandPages, WINDOW_NIGHTS, type BrandSummary } from '../../lib/brands';
+import { getBoardNights } from '../../lib/content';
+import { formatLong, formatMedium, formatShort } from '../../lib/dates';
+
+export const getStaticPaths = (async () => {
+  return brandPages(await getBoardNights()).map((brand) => ({ params: { slug: brand.slug }, props: { brand } }));
+}) satisfies GetStaticPaths;
+
+interface Props { brand: BrandSummary }
+const { brand } = Astro.props;
+const vertical = verticalLabel(brand.vertical);
+const nights = [...brand.nights].reverse();
+const latest = brand.latest.page;
+---
+<Base
+  title={brand.name}
+  description={`${brand.name} homepage scores: ${brand.nightsScored} of the last ${WINDOW_NIGHTS} nights scored, latest ${brand.latest.total}/${TOTAL_MAX}.`}
+  boardPage
+>
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <ol>
+      <li><a href="/">Board</a></li>
+      <li>{vertical}</li>
+      <li aria-current="page">{brand.name}</li>
+    </ol>
+  </nav>
+  <h1 class="display brand-title">{brand.name}</h1>
+  <p class="sub">
+    {vertical} · Tracked since <span class="num">{formatMedium(brand.firstNight)}</span> · <strong class="num">{brand.nightsScored} of {WINDOW_NIGHTS} nights</strong> scored
+  </p>
+
+  <section class="section" aria-labelledby="strip-heading">
+    <div class="section-head">
+      <h2 id="strip-heading" class="display strip-title">Nights</h2>
+      <p class="eyebrow">Newest first · {formatShort(brand.nights[0]!.date)} to {formatShort(brand.windowEnd)}</p>
+    </div>
+    <div class="strip-scroll" tabindex="0" role="region" aria-labelledby="strip-heading">
+      <ol class="strip">
+        {nights.map((n) =>
+          n.state === 'scored' ? (
+            <li class:list={['cell', { 'cell--capped': n.scored.capped }]}>
+              <a class="cell-link" href={`/page/${n.scored.page.id}/`}>
+                <span class="cell-date eyebrow">{formatShort(n.date)}</span>
+                <span class="cell-total num">{n.scored.total}<span class="of">/{TOTAL_MAX}</span></span>
+                <span class:list={['badge', `badge--${n.scored.band}`, 'cell-band']}>{BANDS[n.scored.band].label}</span>
+              </a>
+            </li>
+          ) : (
+            <li class="cell cell--gap">
+              <span class="cell-date eyebrow">{formatShort(n.date)}</span>
+              {n.state === 'not_captured' && (<><span class="cell-gap">Not captured</span><span class="cell-reason">{n.reason}</span></>)}
+              {n.state === 'absent' && <span class="cell-gap">Not on this night's board</span>}
+              {n.state === 'no_board' && <span class="cell-gap">No board this night</span>}
+            </li>
+          ),
+        )}
+      </ol>
+    </div>
+  </section>
+
+  <div class="latest section">
+    <section class="latest-main" aria-labelledby="latest-heading">
+      <div class="section-head">
+        <h2 id="latest-heading" class="display strip-title">Latest scorecard</h2>
+        <p class="eyebrow">{formatLong(latest.night)}</p>
+      </div>
+      <Verdict page={latest} id="latest-verdict" />
+      <div class="latest-dims"><DimensionList dimensions={latest.dimensions} compact /></div>
+      <p class="latest-link"><a class="btn" href={`/page/${latest.id}/`}>Open the full scorecard</a></p>
+    </section>
+    <aside class="latest-rail" aria-label="Watchlist">
+      <WatchlistCard />
+    </aside>
+  </div>
+</Base>
+
+<style>
+  .brand-title { overflow-wrap: anywhere; }
+  .sub { margin-top: 14px; color: var(--ink-2); font-size: var(--text-lg); }
+  .strip-title { font-size: var(--h3); line-height: 1; }
+
+  .strip-scroll { overflow-x: auto; margin-inline: calc(var(--gutter) * -1); padding: 2px var(--gutter) 12px; }
+  .strip-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .strip { list-style: none; padding: 0; display: flex; gap: 8px; width: max-content; }
+  .cell { width: 112px; min-height: 120px; background: var(--surface); border: 1px solid var(--rule); border-top: 6px solid var(--rule); }
+  .cell--capped { border-top-color: var(--ink); }
+  .cell-link { display: flex; flex-direction: column; gap: 6px; height: 100%; padding: 10px 12px; text-decoration: none; }
+  .cell-link:hover .cell-total { text-decoration: underline; }
+  .cell-total { font-weight: 600; font-size: 1.5rem; line-height: 1.1; }
+  .of { font-size: 0.55em; font-weight: 500; color: var(--muted); }
+  .cell-band { min-width: 0; min-height: 24px; font-size: 0.75rem; text-transform: uppercase; align-self: flex-start; }
+  .cell--gap { width: 168px; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: transparent; border-style: dashed; border-top: 1px dashed var(--muted); }
+  .cell-gap { font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); }
+  .cell-reason { font-size: var(--text-sm); color: var(--ink-2); }
+
+  .latest { display: grid; gap: var(--gap); }
+  .latest-main { min-width: 0; }
+  .latest-dims { margin-top: 16px; }
+  .latest-link { margin-top: 16px; }
+
+  @media (min-width: 760px) {
+    .strip-scroll { margin-inline: 0; padding-inline: 0; }
+  }
+  @media (min-width: 980px) {
+    .latest { grid-template-columns: minmax(0, 1fr) 300px; align-items: start; }
+  }
+</style>
