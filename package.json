@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
+    "dev:fixtures": "PT_FIXTURES=1 astro dev",
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",

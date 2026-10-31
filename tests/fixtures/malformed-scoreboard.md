@@ -1,26 +1,28 @@
 ---
-# Deliberately broken. Lives outside src/content so it never reaches the build.
-date: 2026-10-07
-generated_at: 2026-10-07T13:00:00Z
-rubric_version: "1.0"
-emails:
-  - id: 2026-10-06-broken-brand-1
-    brand: Broken Brand
+# Deliberately broken. Lives outside src/content and tests/fixtures/scoreboard
+# so it never reaches a build.
+date: 2026-10-30
+generated_at: 2026-10-31T13:00:00Z
+rubric_version: 1.0               # unquoted: YAML reads a number
+pages:
+  - id: 2026-10-30-broken-brand-home
+    brand: "Broken Brand (placeholder)"
     brand_slug: broken-brand
-    industry: crypto            # not one of the 10 industries
-    kind: campaign
-    sent_at: 2026-10-07T00:42:00Z
-    subject: "Seven dimensions and a six"
-    preheader: ""
-    themes: []
-    dimensions:                 # technical_hygiene is missing (7 dimensions)
-      subject_preheader: { score: 3, note: "n", source: judgment }
-      offer_clarity:     { score: 3, note: "n", source: judgment }
-      design_hierarchy:  { score: 3, note: "n", source: judgment }
-      copy_voice:        { score: 3, note: "n", source: judgment }
-      cta:               { score: 6, note: "out of range", source: judgment }
-      personalization:   { score: 3, note: "n", source: judgment }
-      trust:             { score: 3, note: "n", source: both }
+    vertical: crypto              # not one of the 8 verticals
+    homepage_kind: storefront
+    url: https://www.broken-brand.example/
+    captured_at: 2026-10-31T04:20:00Z
+    hero_headline: "Seven dimensions and a six"
+    primary_cta: { text: "Shop now" }
+    dimensions:                   # hygiene is missing (7 dimensions)
+      headline:  { score: 3, note: "n", source: judgment }
+      value:     { score: 3, note: "n", source: judgment }
+      hierarchy: { score: 3, note: "n", source: judgment }
+      copy:      { score: 3, note: "n", source: judgment }
+      cta:       { score: 6, note: "out of range", source: judgment }
+      relevance: { score: 3, note: "n", source: judgment }
+      trust:     { score: 3, note: "n", source: both }
     checks: []
     screenshot: null
+    subject: "An email field"     # unknown key
 ---

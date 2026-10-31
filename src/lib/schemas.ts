@@ -1,13 +1,12 @@
-// Zod schemas for content. The scoreboard and email schemas are the email
-// board contract this site was seeded from, kept as the starting point for the
-// homepage capture contract; no collection loads them yet (src/content.config.ts
-// loads pages only).
-// Kept free of astro:content imports so Vitest can validate fixtures directly.
+// Zod schemas for content: the nightly board (docs/CONTENT-CONTRACT.md) and the
+// markdown pages. Kept free of astro:content imports so Vitest can validate
+// fixtures directly.
 import { z } from 'astro/zod';
-import { INDUSTRY_KEYS } from '../config/industries';
-import { SCORE_MAX, SCORE_MIN } from '../config/rubric';
+import { CAPPING_DIMENSIONS, HOMEPAGE_KIND_KEYS, SCORE_MAX, SCORE_MIN } from '../config/rubric';
+import { VERTICAL_KEYS } from '../config/verticals';
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Public host suffix of the Vercel Blob store that holds screenshots. */
 export const BLOB_HOST_SUFFIX = '.public.blob.vercel-storage.com';
@@ -16,8 +15,7 @@ export const BLOB_HOST_SUFFIX = '.public.blob.vercel-storage.com';
  * A screenshot reference: a path under /shots/ (fixtures, files in
  * public/shots/) or an https URL on a Vercel Blob public host
  * (*.public.blob.vercel-storage.com) with no credentials, port or empty
- * path. Any other URL is refused. Same rule as the scorer's
- * site_schema_check.py.
+ * path. Any other URL is refused. Same rule as Inbox Teardown's scorer.
  */
 export function isScreenshotRef(v: string): boolean {
   if (!v || /\s/.test(v)) return false;
@@ -39,19 +37,29 @@ export function isScreenshotRef(v: string): boolean {
 }
 
 /**
+ * A not-captured reason must be public wording: a sentence ("The site blocked
+ * our capture browser."), never an internal code such as `bot_wall` or
+ * `HTTP_403`.
+ */
+export function isPublicReason(v: string): boolean {
+  const s = v.trim();
+  return /^[A-Z]/.test(s) && /\.$/.test(s) && !s.includes('_') && s.split(/\s+/).length >= 3;
+}
+
+/**
  * YAML parses unquoted `2026-10-07` as a Date at UTC midnight. Normalize to a
  * plain `YYYY-MM-DD` string so calendar dates never drift across time zones.
  */
 export const isoDate = z.preprocess(
   (v) => (v instanceof Date ? v.toISOString().slice(0, 10) : v),
-  z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected a YYYY-MM-DD date'),
+  z.string().regex(DATE, 'Expected a YYYY-MM-DD date'),
 );
 
 /** Full timestamps (ISO 8601 with offset). */
 export const isoDateTime = z.coerce.date();
 
-export const industrySchema = z.enum(INDUSTRY_KEYS);
-export const kindSchema = z.enum(['campaign', 'welcome', 'transactional']);
+export const verticalSchema = z.enum(VERTICAL_KEYS);
+export const homepageKindSchema = z.enum(HOMEPAGE_KIND_KEYS);
 
 export const dimensionSchema = z.strictObject({
   score: z.number().int().min(SCORE_MIN).max(SCORE_MAX),
@@ -61,34 +69,46 @@ export const dimensionSchema = z.strictObject({
 
 // strictObject: a missing OR an unknown dimension fails the build.
 export const dimensionsSchema = z.strictObject({
-  subject_preheader: dimensionSchema,
-  offer_clarity: dimensionSchema,
-  design_hierarchy: dimensionSchema,
-  copy_voice: dimensionSchema,
+  headline: dimensionSchema,
+  value: dimensionSchema,
+  hierarchy: dimensionSchema,
+  copy: dimensionSchema,
   cta: dimensionSchema,
-  personalization: dimensionSchema,
+  relevance: dimensionSchema,
   trust: dimensionSchema,
-  technical_hygiene: dimensionSchema,
+  hygiene: dimensionSchema,
 });
 
 export const checkSchema = z.strictObject({
+  // A public name from src/lib/checks.ts, never a scorer check_id.
   name: z.string().min(1),
-  // unverified: the check could not reach a verdict (403, 429, timeout, image-only
-  // footer). Rubric v1 never penalizes it, so it renders neutral.
+  // unverified: the check could not reach a verdict (403, 429, timeout, a
+  // footer rendered as an image). Rubric v1 never penalizes it, so it renders
+  // neutral.
   result: z.enum(['pass', 'fail', 'unverified']),
   detail: z.string().optional(),
 });
 
-const emailBase = z.strictObject({
+const homepageBase = z.strictObject({
+  // <date>-<brand_slug>-home; the board checks the prefix and slug.
   id: z.string().regex(SLUG, 'id must be lowercase, URL-safe (a-z, 0-9, hyphens)'),
   brand: z.string().min(1),
   brand_slug: z.string().regex(SLUG, 'brand_slug must be lowercase, URL-safe'),
-  industry: industrySchema,
-  kind: kindSchema,
-  sent_at: isoDateTime,
-  subject: z.string().min(1),
-  preheader: z.string().default(''),
-  themes: z.array(z.string().min(1)).default([]),
+  vertical: verticalSchema,
+  homepage_kind: homepageKindSchema,
+  // The homepage captured, shown as text (never linked) on the scorecard.
+  url: z.url({ protocol: /^https$/ }),
+  captured_at: isoDateTime,
+  // Null when the headline is baked into an image (no live text).
+  hero_headline: z.string().min(1).nullable(),
+  hero_subhead: z.string().min(1).optional(),
+  // Null when no primary CTA is visible in the first screen.
+  primary_cta: z
+    .strictObject({
+      text: z.string().min(1),
+      href: z.string().min(1).optional(),
+    })
+    .nullable(),
   dimensions: dimensionsSchema,
   checks: z.array(checkSchema).default([]),
   // A local path under /shots/ or an https URL on the public Blob store
@@ -112,13 +132,13 @@ const emailBase = z.strictObject({
 
 /**
  * Hard-fail evidence gate. A 1 on a capping dimension (Trust, Technical
- * hygiene) caps the email publicly, so it must be backed by at least one
+ * hygiene) caps the page publicly, so it must be backed by at least one
  * failed check with a non-empty detail. A cap with no evidence fails the build.
  */
-export const emailSchema = emailBase.superRefine((e, ctx) => {
-  const capped = (['trust', 'technical_hygiene'] as const).filter((k) => e.dimensions[k].score === 1);
+export const homepageSchema = homepageBase.superRefine((p, ctx) => {
+  const capped = CAPPING_DIMENSIONS.filter((k) => p.dimensions[k].score === 1);
   if (!capped.length) return;
-  const evidenced = e.checks.some((c) => c.result === 'fail' && (c.detail ?? '').trim().length > 0);
+  const evidenced = p.checks.some((c) => c.result === 'fail' && (c.detail ?? '').trim().length > 0);
   if (!evidenced) {
     capped.forEach((k) =>
       ctx.addIssue({
@@ -130,31 +150,62 @@ export const emailSchema = emailBase.superRefine((e, ctx) => {
   }
 });
 
+export const notCapturedSchema = z.strictObject({
+  brand: z.string().min(1),
+  brand_slug: z.string().regex(SLUG, 'brand_slug must be lowercase, URL-safe'),
+  vertical: verticalSchema,
+  reason: z
+    .string()
+    .refine(isPublicReason, 'reason must be public wording (a sentence ending in a period), not an internal code'),
+});
+
 export const scoreboardSchema = z
   .strictObject({
+    // The night the homepages were captured; the filename must match it.
     date: isoDate,
     generated_at: isoDateTime,
+    // Quoted in YAML, or it parses as a number and fails here.
     rubric_version: z.string().min(1),
-    emails: z.array(emailSchema).min(1),
+    pages: z.array(homepageSchema).min(1),
+    not_captured: z.array(notCapturedSchema).default([]),
   })
-  .superRefine((day, ctx) => {
-    const seen = new Set<string>();
-    day.emails.forEach((e, i) => {
-      if (seen.has(e.id)) {
-        ctx.addIssue({ code: 'custom', path: ['emails', i, 'id'], message: `Duplicate email id "${e.id}"` });
+  .superRefine((night, ctx) => {
+    const ids = new Set<string>();
+    const scored = new Set<string>();
+    night.pages.forEach((p, i) => {
+      if (ids.has(p.id)) {
+        ctx.addIssue({ code: 'custom', path: ['pages', i, 'id'], message: `Duplicate page id "${p.id}"` });
       }
-      seen.add(e.id);
+      ids.add(p.id);
+      const want = `${night.date}-${p.brand_slug}-home`;
+      if (p.id !== want) {
+        ctx.addIssue({ code: 'custom', path: ['pages', i, 'id'], message: `id "${p.id}" must be "${want}" (<date>-<brand_slug>-home)` });
+      }
+      scored.add(p.brand_slug);
+    });
+    const missed = new Set<string>();
+    night.not_captured.forEach((n, i) => {
+      if (scored.has(n.brand_slug)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['not_captured', i, 'brand_slug'],
+          message: `brand_slug "${n.brand_slug}" is in both pages and not_captured`,
+        });
+      }
+      if (missed.has(n.brand_slug)) {
+        ctx.addIssue({ code: 'custom', path: ['not_captured', i, 'brand_slug'], message: `Duplicate not_captured brand_slug "${n.brand_slug}"` });
+      }
+      missed.add(n.brand_slug);
     });
   });
 
 export const pageSchema = z.strictObject({
   title: z.string().min(1),
   description: z.string().min(1),
-  rubric_version: z.string().optional(),
-  rubric_date: z.string().optional(),
 });
 
-export type Email = z.infer<typeof emailSchema>;
-export type ScoreboardDay = z.infer<typeof scoreboardSchema>;
+export type Homepage = z.infer<typeof homepageSchema>;
+export type NotCaptured = z.infer<typeof notCapturedSchema>;
+export type ScoreboardNight = z.infer<typeof scoreboardSchema>;
 export type Dimensions = z.infer<typeof dimensionsSchema>;
 export type CheckResult = z.infer<typeof checkSchema>['result'];
