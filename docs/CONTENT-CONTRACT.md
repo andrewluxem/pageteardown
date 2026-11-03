@@ -64,9 +64,12 @@ Rules:
 
 - `score` is an integer from 1 to 5. `note` is a non-empty string: the one line
   of evidence the rubric requires (a quote from the visible page text, what is
-  visible in the screenshot, or the deciding check's output). `source` is
-  `check` when a check ceiling set the score, `judgment` when the judge did,
-  `both` when the judge scored at a ceiling a check set.
+  visible in the screenshot, or the deciding check's output). `source` says
+  which kind of check fed the score: `check` when every pass or fail check
+  in the dimension is a rules check, `judgment` when every one is judged
+  from the screenshot, `both` when there are some of each. A not applicable
+  check feeds nothing. A ceiling does not change `source`; the note's
+  "Capped at" line shows it.
 - `id` must be exactly `<date>-<brand_slug>-home`, so a brand has at most one
   page per night and the page type is in the URL from the start.
 - `hero_headline` and `primary_cta` are optional. Left out, the scorecard
@@ -228,7 +231,7 @@ D-046 in page-scoreboard's `docs/decisions.md`.
 | the brand's entry in `data/homepage-kinds.json` | `homepage_kind` |
 | dimension score, by rubric slug | `dimensions.<slug>.score` |
 | the dimension's check results and judge evidence | `dimensions.<slug>.note` (see Notes) |
-| the dimension's ceiling-setting check | `dimensions.<slug>.source`: `check` when the ceiling is below the rolled-up score, `both` when equal, `judgment` when there is none or it is above |
+| the classes of the dimension's pass or fail checks | `dimensions.<slug>.source`: `check` when all are class A, `judgment` when all are class B, `both` when there are some of each |
 | check results, by `check_id` | `checks[]`: `name` from `CHECK_PUBLIC_NAMES`, `result` from the status, `detail` from the judge evidence |
 | codebook version | `rubric_version` (see Rubric version) |
 | screenshot URL in the public store | `screenshot` |
