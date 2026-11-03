@@ -6,7 +6,7 @@
 
 /**
  * Public names for page-scoreboard check_ids (codebook/v1-draft.yaml,
- * codebook_version 1.0-draft.7, page_type home). Ids missing here have no
+ * codebook_version 1.0-draft.11, page_type home). Ids missing here have no
  * public name yet; docs/CONTENT-CONTRACT.md lists them and why. The exporter
  * drops their results until they get one.
  */
@@ -29,6 +29,15 @@ export const CHECK_PUBLIC_NAMES: Readonly<Record<string, string>> = {
   hp_intr_no_full_overlay: 'Overlay size',
   hp_intr_unobstructed_fold: 'First screen unobstructed',
   hp_perf_http_ok: 'Page load',
+  hp_value_concrete_benefit: 'Concrete benefit',
+  hp_value_brand_specific: 'Store-specific benefit',
+  hp_value_offer_terms: 'Offer terms',
+  hp_copy_own_words: 'Original wording',
+  hp_copy_no_typos: 'Typos',
+  hp_rel_no_account_assumed: 'Guest access',
+  hp_rel_locale_match: 'Currency and region',
+  // A terms link alone is not a help path (page-scoreboard D-041).
+  hp_trust_help_path: 'Contact or help link',
 };
 
 /**
@@ -40,14 +49,11 @@ export const RUBRIC_CHECK_NAMES = [
   'Page load',
   'Main button link',
   'Headline matches landing page',
-  'Contact, help or terms link',
   'Other links',
   'Live hero text',
   'Image alt text',
   'Phone width',
   'Key copy unobstructed',
-  'Typos',
-  'Offer terms',
   'Link domains',
 ] as const;
 

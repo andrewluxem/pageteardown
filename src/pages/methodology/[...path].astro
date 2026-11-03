@@ -39,6 +39,7 @@ const logged = rubric.sentence('Board and methodology page', 'never changed sile
         <p>The capture: {capture}</p>
         <p>{scoring}</p>
         <p>Only the first screen is scored, as it shows on a phone before any scrolling. {order}</p>
+        <p>{plain(rubric.rule('Scoring rules', 'Scored screen'))}</p>
         <p>Until the rubric has been checked against hand scores, every score is labelled "{RUBRIC_TAG}".</p>
       </div>
     </section>

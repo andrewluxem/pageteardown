@@ -1,6 +1,6 @@
 // Progressive enhancement for the board. Without JS the filter chips are plain
 // links to built pages (/board/<vertical>/<kind>/), each already filtered.
-// With JS a plain click filters in place instead: rows and not-captured
+// With JS a plain click filters in place instead: rows, held and not-captured
 // brands are shown or hidden via `hidden`, ranks and the four stats are
 // recomputed, the chips' links and current state follow, and the address bar
 // is updated to the built page for the same filter.
@@ -12,6 +12,8 @@ export function initScoreboardFilters(root: ParentNode = document): void {
   const rows = [...board.querySelectorAll<HTMLElement>('[data-row]')];
   const missed = [...board.querySelectorAll<HTMLElement>('[data-missed]')];
   const missedSection = board.querySelector<HTMLElement>('[data-missed-section]');
+  const held = [...board.querySelectorAll<HTMLElement>('[data-held]')];
+  const heldSection = board.querySelector<HTMLElement>('[data-held-section]');
   const chips = [...board.querySelectorAll<HTMLAnchorElement>('a[data-filter]')];
   const empty = board.querySelector<HTMLElement>('[data-empty]');
   const stat = (name: string) => document.querySelector<HTMLElement>(`[data-stat="${name}"]`);
@@ -34,6 +36,12 @@ export function initScoreboardFilters(root: ParentNode = document): void {
       if (!m.hidden) missedShown++;
     }
     if (missedSection) missedSection.hidden = missedShown === 0;
+    let heldShown = 0;
+    for (const h of held) {
+      h.hidden = !missedMatches(h.dataset.vertical ?? '', filter);
+      if (!h.hidden) heldShown++;
+    }
+    if (heldSection) heldSection.hidden = heldShown === 0;
     if (empty) empty.hidden = shown.length > 0;
 
     const s = boardStats(shown, missedShown);

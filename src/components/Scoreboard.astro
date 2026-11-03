@@ -1,6 +1,6 @@
 ---
-// The ranked board for one night. Every row and not-captured brand is in the
-// markup on every filtered page; the ones outside the filter carry `hidden`,
+// The ranked board for one night. Every row, held brand and not-captured brand
+// is in the markup on every filtered page; the ones outside the filter carry `hidden`,
 // so the page reads right without JS and the script can refilter in place.
 import Legend from './Legend.astro';
 import { BANDS, DIMENSIONS, HOMEPAGE_KINDS, HOMEPAGE_KIND_KEYS, TOTAL_MAX } from '../config/rubric';
@@ -8,18 +8,23 @@ import { VERTICAL_KEYS, verticalLabel } from '../config/verticals';
 import { ALL, boardHref, missedMatches, rowMatches, type Filter } from '../lib/board-filter';
 import type { FlatPage } from '../lib/boards';
 import { cappingDimension, type Scored } from '../lib/scoring';
-import type { NotCaptured } from '../lib/schemas';
+import { HELD_REASON } from '../config/board';
+import type { Held, NotCaptured } from '../lib/schemas';
 
 interface Props {
   ranked: Scored<FlatPage>[];
   notCaptured: NotCaptured[];
+  /** Captured and scored, but held for review: listed with HELD_REASON, never ranked. */
+  held: Held[];
   filter: Filter;
   /** Brand slugs that have a brand page, so a not-captured brand can link to its history. */
   brandsWithPages: Set<string>;
 }
-const { ranked, notCaptured, filter, brandsWithPages } = Astro.props;
+const { ranked, notCaptured, held, filter, brandsWithPages } = Astro.props;
 
-const verticals = VERTICAL_KEYS.filter((k) => ranked.some((s) => s.page.vertical === k) || notCaptured.some((n) => n.vertical === k));
+const verticals = VERTICAL_KEYS.filter(
+  (k) => ranked.some((s) => s.page.vertical === k) || notCaptured.some((n) => n.vertical === k) || held.some((h) => h.vertical === k),
+);
 const kinds = HOMEPAGE_KIND_KEYS.filter((k) => ranked.some((s) => s.page.homepage_kind === k));
 const groups = [
   { key: 'vertical' as const, label: 'Vertical', options: verticals.map((k) => ({ value: k, label: verticalLabel(k) })) },
@@ -32,6 +37,9 @@ const rows = ranked.map((s) => {
   return { s, visible, rank: visible ? ++shown : undefined, cap: cappingDimension(s.page) };
 });
 const missed = notCaptured.map((n) => ({ n, visible: missedMatches(n.vertical, filter) }));
+const heldRows = held.map((h) => ({ h, visible: missedMatches(h.vertical, filter) }));
+// hero_headline is optional (the exporter leaves it out in v1): with none on the night the column has no heading.
+const showHeadline = ranked.some((s) => s.page.hero_headline !== undefined);
 ---
 <div class="board-wrap" data-board data-vertical={filter.vertical} data-kind={filter.kind}>
   <nav class="filters" aria-label="Filter the board">
@@ -59,7 +67,7 @@ const missed = notCaptured.map((n) => ({ n, visible: missedMatches(n.vertical, f
 
   <div class="board">
     <div class="board-head" aria-hidden="true">
-      <span>#</span><span>Brand</span><span>Vertical</span><span>Hero headline</span><span class="head-total">Total</span><span>Band</span>
+      <span>#</span><span>Brand</span><span>Vertical</span><span>{showHeadline ? 'Hero headline' : ''}</span><span class="head-total">Total</span><span>Band</span>
     </div>
     <ol class="board-rows" aria-label="Homepages ranked by score">
       {rows.map(({ s, visible, rank, cap }) => (
@@ -68,7 +76,7 @@ const missed = notCaptured.map((n) => ({ n, visible: missedMatches(n.vertical, f
           <span class="c-brand"><a class="row-link" href={`/page/${s.page.id}/`}>{s.page.brand}</a></span>
           <span class="c-vertical">{verticalLabel(s.page.vertical)}</span>
           <span class="c-headline">
-            {s.page.hero_headline ? <span class="headline">{s.page.hero_headline}</span> : <span class="headline headline--image">Headline is in an image</span>}
+            {s.page.hero_headline ? <span class="headline">{s.page.hero_headline}</span> : s.page.hero_headline === null && <span class="headline headline--image">Headline is in an image</span>}
             {cap && <span class="flag">Capped: {DIMENSIONS[cap]} scored 1</span>}
           </span>
           <span class="c-total num">{s.total}<span class="of">/{TOTAL_MAX}</span></span>
@@ -80,6 +88,20 @@ const missed = notCaptured.map((n) => ({ n, visible: missedMatches(n.vertical, f
   </div>
   <Legend />
 
+  {held.length > 0 && (
+    <section class="section missed" data-held-section hidden={!heldRows.some((m) => m.visible)} aria-labelledby="held-heading">
+      <h2 id="held-heading" class="display missed-title">Held for review</h2>
+      <ul class="missed-list">
+        {heldRows.map(({ h, visible }) => (
+          <li data-held data-vertical={h.vertical} hidden={!visible}>
+            <span class="missed-brand">{brandsWithPages.has(h.brand_slug) ? <a href={`/brand/${h.brand_slug}/`}>{h.brand}</a> : h.brand}</span>
+            <span class="missed-vertical eyebrow">{verticalLabel(h.vertical)}</span>
+            <span class="missed-reason">{HELD_REASON}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
   {notCaptured.length > 0 && (
     <section class="section missed" data-missed-section hidden={!missed.some((m) => m.visible)} aria-labelledby="missed-heading">
       <h2 id="missed-heading" class="display missed-title">Not captured</h2>

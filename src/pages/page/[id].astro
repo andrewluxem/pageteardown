@@ -56,18 +56,22 @@ const resultLabel: Record<CheckResult, string> = { pass: 'Pass', fail: 'Fail', u
         <div><dt class="eyebrow">Homepage URL</dt><dd class="mono meta-url">{page.url}</dd></div>
         <div><dt class="eyebrow">Vertical</dt><dd>{verticalLabel(page.vertical)}</dd></div>
         <div><dt class="eyebrow">Kind</dt><dd>{HOMEPAGE_KINDS[page.homepage_kind]}</dd></div>
-        <div><dt class="eyebrow">Hero headline</dt><dd>
-          {page.hero_headline ? <span class="meta-strong">{page.hero_headline}</span> : <span class="muted">Headline is in an image</span>}
-          {page.hero_subhead && <span class="meta-sub">{page.hero_subhead}</span>}
-        </dd></div>
-        <div><dt class="eyebrow">Primary CTA</dt><dd>
-          {page.primary_cta ? (
-            <>
-              <span class="meta-strong">{page.primary_cta.text}</span>
-              {page.primary_cta.href && <span class="meta-sub mono">{page.primary_cta.href}</span>}
-            </>
-          ) : <span class="muted">None in the first screen</span>}
-        </dd></div>
+        {page.hero_headline !== undefined && (
+          <div><dt class="eyebrow">Hero headline</dt><dd>
+            {page.hero_headline ? <span class="meta-strong">{page.hero_headline}</span> : <span class="muted">Headline is in an image</span>}
+            {page.hero_subhead && <span class="meta-sub">{page.hero_subhead}</span>}
+          </dd></div>
+        )}
+        {page.primary_cta !== undefined && (
+          <div><dt class="eyebrow">Primary CTA</dt><dd>
+            {page.primary_cta ? (
+              <>
+                <span class="meta-strong">{page.primary_cta.text}</span>
+                {page.primary_cta.href && <span class="meta-sub mono">{page.primary_cta.href}</span>}
+              </>
+            ) : <span class="muted">None in the first screen</span>}
+          </dd></div>
+        )}
       </dl>
     </div>
 

@@ -7,6 +7,7 @@ import Base from '../../layouts/Base.astro';
 import Verdict from '../../components/Verdict.astro';
 import DimensionList from '../../components/DimensionList.astro';
 import WatchlistCard from '../../components/WatchlistCard.astro';
+import { HELD_REASON } from '../../config/board';
 import { BANDS, TOTAL_MAX } from '../../config/rubric';
 import { verticalLabel } from '../../config/verticals';
 import { brandPages, WINDOW_NIGHTS, type BrandSummary } from '../../lib/brands';
@@ -60,6 +61,7 @@ const latest = brand.latest.page;
             <li class="cell cell--gap">
               <span class="cell-date eyebrow">{formatShort(n.date)}</span>
               {n.state === 'not_captured' && (<><span class="cell-gap">Not captured</span><span class="cell-reason">{n.reason}</span></>)}
+              {n.state === 'held' && (<><span class="cell-gap">Held</span><span class="cell-reason">{HELD_REASON}</span></>)}
               {n.state === 'absent' && <span class="cell-gap">Not on this night's board</span>}
               {n.state === 'no_board' && <span class="cell-gap">No board this night</span>}
             </li>

@@ -28,9 +28,9 @@ pages:                              # at least one
     homepage_kind: storefront          # storefront | product | editorial | other
     url: https://www.kestrel.example/  # the homepage captured, https; shown as text, never linked
     captured_at: 2026-11-03T04:20:00Z  # ISO 8601
-    hero_headline: "Gear for the first snow"   # or null when the headline is baked into an image
+    hero_headline: "Gear for the first snow"   # optional; null when the headline is baked into an image
     hero_subhead: "Free returns all winter"    # optional
-    primary_cta: { text: "Shop winter", href: "/collections/winter" }   # href optional; null when no CTA is in the first screen
+    primary_cta: { text: "Shop winter", href: "/collections/winter" }   # optional; href optional; null when no CTA is in the first screen
     dimensions:                        # all 8 required, no extras
       headline:  { score: 4, note: "...", source: judgment }
       value:     { score: 3, note: "...", source: judgment }
@@ -53,6 +53,10 @@ not_captured:                       # optional, defaults to []
     brand_slug: ostra-coffee-co
     vertical: food
     reason: "The site blocked our capture browser."
+held:                               # optional, defaults to []
+  - brand: Fenwick Supply
+    brand_slug: fenwick-supply
+    vertical: home
 ---
 ```
 
@@ -60,14 +64,21 @@ Rules:
 
 - `score` is an integer from 1 to 5. `note` is a non-empty string: the one line
   of evidence the rubric requires (a quote from the visible page text, what is
-  visible in the screenshot, or the deciding check's output). `source` is
-  `check` when a check ceiling set the score, `judgment` when the judge did,
-  `both` when the judge scored at a ceiling a check set.
+  visible in the screenshot, or the deciding check's output). `source` says
+  which kind of check fed the score: `check` when every pass or fail check
+  in the dimension is a rules check, `judgment` when every one is judged
+  from the screenshot, `both` when there are some of each. A not applicable
+  check feeds nothing. A ceiling does not change `source`; the note's
+  "Capped at" line shows it.
 - `id` must be exactly `<date>-<brand_slug>-home`, so a brand has at most one
   page per night and the page type is in the URL from the start.
-- `hero_headline` must be present. It is the headline as live text, or `null`
-  when the headline is part of an image (the board shows "Headline is in an
-  image").
+- `hero_headline` and `primary_cta` are optional. Left out, the scorecard
+  has no headline or CTA row and the board's headline cell is empty; the
+  page-scoreboard exporter leaves both out in v1. When present,
+  `hero_headline` is the headline as live text, or `null` when the headline is
+  part of an image (the board shows "Headline is in an image"), and
+  `primary_cta` is the first-screen CTA, or `null` when there is none ("None
+  in the first screen").
 - `checks[].name` is one of the public names in `src/lib/checks.ts`, never a
   scorer `check_id` (see the mapping below). `result` is `pass`, `fail`, or
   `unverified` (shown as "Not verified"; Rubric v1 never lowers a score for it);
@@ -83,8 +94,8 @@ Rules:
 - `correction` is optional. When present, the scorecard shows "Corrected
   {date}: {note}" in the verdict block. Update the dimension scores themselves
   to the corrected values.
-- Unknown keys anywhere in a night, page, dimension, check or not-captured
-  entry fail the build.
+- Unknown keys anywhere in a night, page, dimension, check, not-captured or
+  held entry fail the build.
 
 ### Not captured
 
@@ -96,6 +107,17 @@ in time."). Never an internal code such as `bot_wall` or `HTTP_403`.
 
 A `brand_slug` may not appear in both `pages` and `not_captured` on the same
 night, or twice in `not_captured`.
+
+### Held for review
+
+A brand whose page was captured and scored but is held for review (a check
+whose ceiling is still waiting on review) goes in `held`: `brand`,
+`brand_slug`, `vertical`, and no wording. The site shows the fixed sentence
+"Score held for review." (`HELD_REASON` in `src/config/board.ts`) in a "Held
+for review" list under the board and as a "Held" gap on the brand page. It is
+not counted in "Not captured", because the page was captured. A `brand_slug`
+may not appear in `held` and in `pages` or `not_captured` on the same night,
+or twice in `held`.
 
 ### Hard-fail evidence gate (standing rule)
 
@@ -174,7 +196,8 @@ Derived by grouping every night's pages by `brand_slug`; there is no brand
 collection. A brand is published from its first scored night. Its page shows
 the 30 nights ending on the newest board: "N of 30 nights" scored, a filmstrip
 of nights linking to each scorecard, nights in `not_captured` as gaps with
-their reason, and the latest scorecard. A brand's name and vertical come from
+their reason, nights in `held` as gaps with "Score held for review.", and
+the latest scorecard. A brand's name and vertical come from
 its most recent scored night.
 
 ## Fixtures: `tests/fixtures/scoreboard/`
@@ -192,14 +215,10 @@ Never use a real brand name in a fixture.
 
 ## From page-scoreboard records
 
-The rubric's content contract has the agent host emit one record per homepage.
-This is how a record becomes a page on the board. As of Oct 31,
-page-scoreboard (main, codebook `1.0-draft.7`) has no exporter yet, and its
-codebook's eight dimensions (`value_proposition`, `primary_message`,
-`hierarchy`, `primary_cta`, `findability`, `trust`, `interruption`,
-`performance`) are not the rubric's. The rubric's eight slugs below are what
-the board accepts; scores keyed by the codebook's dimensions cannot be
-published until the scorer emits rubric v1 slugs.
+page-scoreboard's `scripts/export_board.py` writes the board from one scored
+night (`score.json`, `dom_facts.json` and the judge files of each page, the
+brand registry, and `data/homepage-kinds.json`). Its decisions are D-040 and
+D-046 in page-scoreboard's `docs/decisions.md`.
 
 | Record field | Board field |
 |---|---|
@@ -209,30 +228,65 @@ published until the scorer emits rubric v1 slugs.
 | registry `pages[type=home].url` | `url` |
 | capture date | the file's `date`, and the `id` prefix |
 | capture timestamp | `captured_at` |
-| homepage kind (the Choice answer) | `homepage_kind` |
+| the brand's entry in `data/homepage-kinds.json` | `homepage_kind` |
 | dimension score, by rubric slug | `dimensions.<slug>.score` |
-| the dimension's evidence line | `dimensions.<slug>.note` |
-| the dimension's ceiling-setting check | `dimensions.<slug>.source`: `check` when the ceiling is below the judged score, `both` when equal, `judgment` when there is none or it is above |
-| check results, by `check_id` | `checks[]`: `name` from `CHECK_PUBLIC_NAMES`, `result` from the status, `detail` from the evidence |
-| `rubric_version` | `rubric_version` |
+| the dimension's check results and judge evidence | `dimensions.<slug>.note` (see Notes) |
+| the classes of the dimension's pass or fail checks | `dimensions.<slug>.source`: `check` when all are class A, `judgment` when all are class B, `both` when there are some of each |
+| check results, by `check_id` | `checks[]`: `name` from `CHECK_PUBLIC_NAMES`, `result` from the status, `detail` from the judge evidence |
+| codebook version | `rubric_version` (see Rubric version) |
 | screenshot URL in the public store | `screenshot` |
-| visible hero headline, subhead and primary CTA text and href | `hero_headline` (`null` when image-only), `hero_subhead`, `primary_cta` |
+| a page with pending check review | `held` |
+
+- **Dimensions.** The codebook's eight dimensions are the rubric's slugs, the
+  same keys since codebook `1.0-draft.8` (D-040). A dimension's score is the
+  roll-up of its checks: a level from the weighted pass ratio and the cut
+  points, then the lowest reviewed ceiling.
+- **Notes.** Built only from check results and judge evidence; the exporter
+  writes no other copy. A note is the pass count ("The check passes.", "Both
+  checks pass.", "3 of 5 checks pass.", "All 5 checks pass."), then "Capped at
+  2/5 by Offer terms." when a reviewed ceiling sets or ties the score, then up
+  to two failing checks, the capping one first and the heaviest next, as
+  "<name>: <judge evidence>" (or "<name>: fail." for a check with no evidence;
+  a capping check with no evidence is named only in the cap sentence). With
+  nothing failing, it ends with the evidence of the heaviest passing check that
+  has some. Evidence is cut at the last sentence or clause end within 140
+  characters, or at a word boundary with "…", never mid-word, and judge quotes
+  keep the page's own punctuation.
+- **State B.** Where the capture dismissed a full-screen popup, the content
+  checks are judged on the screen after the dismissal (rubric "Scored
+  screen"). Their details, and the evidence quoted from them in notes, start
+  with "After closing the popup: ", because the screenshot shown is the screen
+  before it.
+- **Homepage kind.** A fixed map per brand in page-scoreboard
+  `data/homepage-kinds.json`, describing the brand's usual homepage, not one
+  night's hero. A captured brand missing from the map refuses the export.
+- **Rubric version.** Codebook `1.0-draft.N` maps to `"1.0-draft"`, a final
+  `1.0` to `"1.0"`. A real export checks that it equals `RUBRIC_VERSION` in
+  `src/config/rubric.ts`.
+- **Soft launch.** A real export, or a screenshot upload, made with a draft
+  codebook is allowed only while `RUBRIC_VERSION` is a draft, when every board
+  page is noindex and labelled "rubric v1.0, pre-calibration" (`RUBRIC_TAG`).
+  Otherwise the codebook must be publishable.
+- **Not written in v1:** `hero_headline`, `hero_subhead` and `primary_cta`.
+  The page reader's values are not yet fit to publish.
 
 What is published:
 
 - A record with any unscored dimension (page-scoreboard's `complete: false`,
-  for example an `incomplete` or `no_field_data` dimension, or an `unjudged`
-  check) or with pending check review (`pending_check_review: true`) is not
-  published. The brand goes in `not_captured` with a public reason.
+  for example an `incomplete` dimension or an `unjudged` check) is not
+  published. A record with pending check review (`pending_check_review: true`)
+  is not published and goes in `held`.
 - Check status `pass` and `fail` map to themselves. A rubric v1 "unverified"
   outcome (403, 429, timeouts, a footer rendered as an image) maps to
-  `unverified`. `not_applicable` is left out. A check whose `check_id` has no
-  public name is left out until it gets one.
+  `unverified`; the scorer has no such status yet, so none is written.
+  `not_applicable` is left out. A check whose `check_id` has no public name
+  is left out until it gets one.
 
 ### Public check names
 
 `CHECK_PUBLIC_NAMES` in `src/lib/checks.ts` names these homepage checks of
-codebook `1.0-draft.7`:
+codebook `1.0-draft.11`. Each names what was checked, never a failure, so it
+reads right next to any result.
 
 | check_id | Public name |
 |---|---|
@@ -254,6 +308,14 @@ codebook `1.0-draft.7`:
 | `hp_intr_no_full_overlay` | Overlay size |
 | `hp_intr_unobstructed_fold` | First screen unobstructed |
 | `hp_perf_http_ok` | Page load |
+| `hp_value_concrete_benefit` | Concrete benefit |
+| `hp_value_brand_specific` | Store-specific benefit |
+| `hp_value_offer_terms` | Offer terms |
+| `hp_copy_own_words` | Original wording |
+| `hp_copy_no_typos` | Typos |
+| `hp_rel_no_account_assumed` | Guest access |
+| `hp_rel_locale_match` | Currency and region |
+| `hp_trust_help_path` | Contact or help link (a terms link alone is not one) |
 
 Ids with no public name, so their results are not published:
 
@@ -270,9 +332,8 @@ Ids with no public name, so their results are not published:
 Rubric v1's deterministic checks table has rows with no `check_id` in
 page-scoreboard yet. Their public names are in `RUBRIC_CHECK_NAMES` and move
 into `CHECK_PUBLIC_NAMES` under their ids once the scorer has them: Page load,
-Main button link, Headline matches landing page, Contact, help or terms link,
-Other links, Live hero text, Image alt text, Phone width, Key copy
-unobstructed, Typos, Offer terms, Link domains.
+Main button link, Headline matches landing page, Other links, Live hero text,
+Image alt text, Phone width, Key copy unobstructed, Link domains.
 
 ## Pages: `src/content/pages/*.md`
 

@@ -54,7 +54,7 @@ const stats = boardStats(
 
     <section class="section" aria-labelledby="board-heading">
       <h2 id="board-heading" class="sr-only">Every homepage, ranked</h2>
-      <Scoreboard ranked={ranked} notCaptured={night.not_captured} filter={filter} brandsWithPages={brandsWithPages} />
+      <Scoreboard ranked={ranked} notCaptured={night.not_captured} held={night.held} filter={filter} brandsWithPages={brandsWithPages} />
     </section>
 
     <SisterSites />
