@@ -1,0 +1,52 @@
+---
+// Compact scorecard for the board's best and worst pair: the only place on
+// the board with a screenshot thumbnail.
+import ScoreBadge from './ScoreBadge.astro';
+import { DIMENSIONS, HOMEPAGE_KINDS } from '../config/rubric';
+import { verticalLabel } from '../config/verticals';
+import { lowestDimension, score } from '../lib/scoring';
+import { FALLBACK_SIZE, screenshotSize } from '../lib/shots';
+import type { Homepage } from '../lib/schemas';
+
+interface Props {
+  page: Homepage;
+  label?: string;
+  /** 'best' draws a blue top rule, 'fail' a near-black one. */
+  tone?: 'best' | 'fail' | 'plain';
+  headingLevel?: 'h2' | 'h3';
+}
+const { page, label, tone = 'plain', headingLevel: H = 'h3' } = Astro.props;
+const s = score(page);
+const low = lowestDimension(page);
+const size = page.screenshot ? await screenshotSize(page.screenshot) : FALLBACK_SIZE;
+---
+<article class:list={['mini', `mini--${tone}`]}>
+  <div class="mini-thumb" style={`aspect-ratio: ${size.width} / ${size.height}`}>
+    {page.screenshot ? <img src={page.screenshot} alt="" width={size.width} height={size.height} loading="lazy" decoding="async" /> : null}
+  </div>
+  <div class="mini-body">
+    {label && <p class="eyebrow">{label}</p>}
+    <div class="mini-top">
+      <H class="mini-brand"><a href={`/page/${page.id}/`}>{page.brand}</a></H>
+      <ScoreBadge total={s.total} band={s.band} />
+    </div>
+    <p class="mini-headline">{page.hero_headline ?? <span class="muted">Headline is in an image</span>}</p>
+    <p class="mini-meta eyebrow">{verticalLabel(page.vertical)} · {HOMEPAGE_KINDS[page.homepage_kind]}</p>
+    <p class="mini-note"><span class="mono mini-dim">{DIMENSIONS[low]} {page.dimensions[low].score}/5:</span> {page.dimensions[low].note}</p>
+  </div>
+</article>
+<style>
+  .mini { background: var(--surface); border: 1px solid var(--rule); padding: 16px; min-width: 0; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 14px; align-items: start; }
+  .mini--best { border-top: 6px solid var(--strong-fg); }
+  .mini--fail { border-top: 6px solid var(--ink); }
+  .mini-thumb { border: 4px solid var(--ink); border-top-width: 8px; border-bottom-width: 10px; background: var(--header-bg-2); overflow: hidden; }
+  .mini-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .mini-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px; margin-top: 6px; }
+  .mini-brand { font-family: var(--font-display); font-stretch: var(--display-stretch); font-weight: var(--display-weight); text-transform: uppercase; font-size: 1.5rem; line-height: 1; min-width: 0; overflow-wrap: break-word; }
+  .mini-brand a { text-decoration: none; display: inline-block; padding-block: 10px; margin-block: -10px; }
+  .mini-brand a:hover { text-decoration: underline; }
+  .mini-headline { margin-top: 10px; font-weight: 500; overflow-wrap: anywhere; }
+  .mini-meta { margin-top: 6px; }
+  .mini-note { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule-2); font-size: var(--text-sm); color: var(--ink-2); }
+  .mini-dim { font-size: 0.8125rem; font-weight: 600; color: var(--ink); }
+</style>

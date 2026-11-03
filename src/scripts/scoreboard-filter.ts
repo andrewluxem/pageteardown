@@ -1,57 +1,63 @@
-// Progressive enhancement for the scoreboard. Without JS every row shows and
-// the controls stay hidden; with JS, rows are filtered via `hidden` and the
-// stat trio, rank numbers, and empty state are kept in sync.
+// Progressive enhancement for the board. Without JS the filter chips are plain
+// links to built pages (/board/<vertical>/<kind>/), each already filtered.
+// With JS a plain click filters in place instead: rows and not-captured
+// brands are shown or hidden via `hidden`, ranks and the four stats are
+// recomputed, the chips' links and current state follow, and the address bar
+// is updated to the built page for the same filter.
+import { ALL, boardHref, boardStats, missedMatches, rowMatches, type Filter } from '../lib/board-filter';
 
 export function initScoreboardFilters(root: ParentNode = document): void {
   const board = root.querySelector<HTMLElement>('[data-board]');
   if (!board) return;
-  const controls = board.querySelector<HTMLElement>('[data-filters]');
-  const rows = [...board.querySelectorAll<HTMLElement>('.row')];
-  const chips = [...board.querySelectorAll<HTMLButtonElement>('[data-industry-filter]')];
-  const toggle = board.querySelector<HTMLButtonElement>('[data-campaigns-only]');
+  const rows = [...board.querySelectorAll<HTMLElement>('[data-row]')];
+  const missed = [...board.querySelectorAll<HTMLElement>('[data-missed]')];
+  const missedSection = board.querySelector<HTMLElement>('[data-missed-section]');
+  const chips = [...board.querySelectorAll<HTMLAnchorElement>('a[data-filter]')];
   const empty = board.querySelector<HTMLElement>('[data-empty]');
   const stat = (name: string) => document.querySelector<HTMLElement>(`[data-stat="${name}"]`);
 
-  let industry = 'all';
-  let campaignsOnly = toggle?.getAttribute('aria-pressed') === 'true';
+  const filter: Filter = { vertical: board.dataset.vertical ?? ALL, kind: board.dataset.kind ?? ALL };
 
   function apply(): void {
-    let shown = 0;
-    let sum = 0;
-    let fails = 0;
+    const shown: { total: number; capped: boolean }[] = [];
     for (const row of rows) {
-      const visible =
-        (industry === 'all' || row.dataset.industry === industry) && (!campaignsOnly || row.dataset.kind === 'campaign');
+      const visible = rowMatches({ vertical: row.dataset.vertical ?? '', kind: row.dataset.kind ?? '' }, filter);
       row.hidden = !visible;
       if (!visible) continue;
-      shown++;
-      sum += Number(row.dataset.total);
-      if (row.dataset.capped === 'true') fails++;
+      shown.push({ total: Number(row.dataset.total), capped: row.dataset.capped === 'true' });
       const rank = row.querySelector('[data-rank]');
-      if (rank) rank.textContent = String(shown);
+      if (rank) rank.textContent = String(shown.length);
     }
-    if (empty) empty.hidden = shown > 0;
-    const count = stat('count');
-    const avg = stat('avg');
-    const hard = stat('fails');
-    if (count) count.textContent = String(shown);
-    if (avg) avg.textContent = shown ? (sum / shown).toFixed(1) : '0.0';
-    if (hard) hard.textContent = String(fails);
+    let missedShown = 0;
+    for (const m of missed) {
+      m.hidden = !missedMatches(m.dataset.vertical ?? '', filter);
+      if (!m.hidden) missedShown++;
+    }
+    if (missedSection) missedSection.hidden = missedShown === 0;
+    if (empty) empty.hidden = shown.length > 0;
+
+    const s = boardStats(shown, missedShown);
+    for (const [name, value] of Object.entries(s)) {
+      const el = stat(name);
+      if (el) el.textContent = String(value);
+    }
+    for (const chip of chips) {
+      const group = chip.dataset.filter as keyof Filter;
+      const value = chip.dataset.value ?? ALL;
+      chip.href = boardHref({ ...filter, [group]: value });
+      if (filter[group] === value) chip.setAttribute('aria-current', 'true');
+      else chip.removeAttribute('aria-current');
+    }
   }
 
   for (const chip of chips) {
-    chip.addEventListener('click', () => {
-      industry = chip.dataset.industryFilter ?? 'all';
-      for (const c of chips) c.setAttribute('aria-pressed', String(c === chip));
+    chip.addEventListener('click', (e) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      filter[chip.dataset.filter as keyof Filter] = chip.dataset.value ?? ALL;
       apply();
+      history.replaceState(null, '', boardHref(filter));
     });
   }
-  toggle?.addEventListener('click', () => {
-    campaignsOnly = !campaignsOnly;
-    toggle.setAttribute('aria-pressed', String(campaignsOnly));
-    apply();
-  });
-
-  if (controls) controls.hidden = false;
   apply();
 }

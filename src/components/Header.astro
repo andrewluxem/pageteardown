@@ -1,9 +1,18 @@
 ---
 import wordmark from '../assets/brand/wordmark-on-dark.svg';
+import { hasBoard } from '../lib/content';
 
-// The board's pages go before Watchlist once they exist; Watchlist stays last.
+// Board and Method exist only once a board file does (until then / is the
+// holding page and /methodology/ is not built); Watchlist stays last.
 // The nav and the mobile menu render only when there is something to list.
+const board = await hasBoard();
 const items: { href: string; label: string; match: (p: string) => boolean }[] = [
+  ...(board
+    ? [
+        { href: '/', label: 'Board', match: (p: string) => p === '/' || /^\/(board|page|brand)\//.test(p) },
+        { href: '/methodology/', label: 'Method', match: (p: string) => p.startsWith('/methodology/') },
+      ]
+    : []),
   { href: '/watchlist/', label: 'Watchlist', match: (p) => p.startsWith('/watchlist/') },
 ];
 const path = Astro.url.pathname;

@@ -2,11 +2,17 @@
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import vercel from '@astrojs/vercel';
+import { fileURLToPath } from 'node:url';
 import { SITE } from './src/config/site.ts';
+import { hasBoardFiles, isUnlistedBoardPath } from './src/config/board.ts';
+import { RUBRIC_IS_DRAFT } from './src/config/rubric.ts';
 
-// Noindex utility pages stay out of the sitemap.
+// Noindex pages stay out of the sitemap: the utility pages, filtered board
+// views, and every board page while the rubric is a draft.
 const hidden = ['/signups-soon/', '/signed-up/'];
-const isHidden = (/** @type {string} */ path) => hidden.includes(path);
+const boardShown = hasBoardFiles(fileURLToPath(new URL('.', import.meta.url)));
+const isHidden = (/** @type {string} */ path) =>
+  hidden.includes(path) || isUnlistedBoardPath(path, { draft: RUBRIC_IS_DRAFT, boardShown });
 
 export default defineConfig({
   site: SITE.siteUrl,

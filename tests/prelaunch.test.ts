@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   checkAndrewAnywhere,
   checkAndrewMarkers,
+  checkDraftNoindex,
   checkFixtureBrands,
+  checkFixtureContent,
   checkFooterContact,
   checkOgImages,
   checkPlaceholders,
-  senderCopyBrackets,
+  pageCopyBrackets,
   checkPrivacyPage,
   checkRobots,
   checkScriptHosts,
@@ -74,12 +76,12 @@ describe('bracketed placeholders', () => {
     ]);
     expect(f.map((x) => x.detail)).toEqual(['[PRICE] on a.html, b.html', '[Scale anchors to be written] on a.html']);
   });
-  it("passes bracketed text quoted from a sender's subject, but not the same text elsewhere", () => {
-    const sender = senderCopyBrackets([
-      { emails: [{ subject: '[Welcome Flow Wool Variation B] Meet Easy Care Wool', preheader: 'Hi', themes: ['[New Arrivals]'] }] },
+  it("passes bracketed text quoted from a brand's homepage copy, but not the same text elsewhere", () => {
+    const copy = pageCopyBrackets([
+      { pages: [{ brand: 'Brand A', hero_headline: '[NEW] Winter coats', hero_subhead: null, primary_cta: { text: '[Shop Now]' } }], not_captured: [{ brand: '[Brand Q]' }] },
     ]);
-    expect([...sender]).toEqual(['[Welcome Flow Wool Variation B]', '[New Arrivals]']);
-    const f = checkPlaceholders([page('a.html', '<p>[Welcome Flow Wool Variation B] Meet Easy Care Wool</p><p>[PRICE]</p>')], sender);
+    expect([...copy]).toEqual(['[NEW]', '[Shop Now]', '[Brand Q]']);
+    const f = checkPlaceholders([page('a.html', '<p>[NEW] Winter coats</p><p>[PRICE]</p>')], copy);
     expect(f.map((x) => x.detail)).toEqual(['[PRICE] on a.html']);
   });
 });
@@ -124,13 +126,53 @@ describe('"[ANDREW" anywhere under src/', () => {
   });
 });
 
-describe('fixture brands', () => {
+describe('fixture brands in src/content/', () => {
   it('passes content without fixture brands', () => {
-    expect(checkFixtureBrands([{ path: 'src/content/x.md', text: 'brand: Real Brand Co.' }])).toEqual([]);
+    expect(checkFixtureBrands([{ path: 'src/content/scoreboard/x.md', text: 'brand: Real Brand Co.\nbrand: Brandless\nbrand: Brand Ambassadors' }])).toEqual([]);
   });
-  it('reports each file and the brands in it', () => {
-    const f = checkFixtureBrands([{ path: 'src/content/x.md', text: 'brand: Marlow & Pike\nbrand: Ledgerly' }]);
-    expect(f.map((x) => x.detail)).toEqual(['src/content/x.md: Marlow & Pike, Ledgerly']);
+  it('reports each file with its "Brand A" style names and fixture screenshots', () => {
+    const f = checkFixtureBrands([{ path: 'src/content/scoreboard/x.md', text: 'brand: "Brand A (placeholder)"\nbrand: Brand T\nscreenshot: /shots/fixtures/placeholder-1.png' }]);
+    expect(f.map((x) => x.detail)).toEqual(['src/content/scoreboard/x.md: Brand A, Brand T, /shots/fixtures/']);
+  });
+});
+
+describe('fixture content in built pages', () => {
+  it('passes a production page', () => {
+    expect(checkFixtureContent([page('index.html', '<title>Page Teardown</title><p>Brandless wins. Brand Ambassadors.</p><img src="/shots/2026-11-02/x.webp">')])).toEqual([]);
+  });
+  it('fails a production build with fixture content: names, screenshots or the banner, each listing its pages', () => {
+    const f = checkFixtureContent([
+      page('index.html', '<p>Brand A (placeholder)</p>'),
+      page('page/x/index.html', '<meta property="og:title" content="Brand K (placeholder): homepage scorecard"><img src="/shots/fixtures/placeholder-1.png" alt="">'),
+      page('privacy/index.html', '<div class="banner" data-pt-fixture role="note"></div>'),
+    ]);
+    expect(f.map((x) => x.detail)).toEqual([
+      '"Brand A" style placeholder names on 2 pages (index.html, page/x/index.html); build without PT_FIXTURES=1',
+      '/shots/fixtures/ screenshots on 1 pages (page/x/index.html); build without PT_FIXTURES=1',
+      'the data-pt-fixture banner on 1 pages (privacy/index.html); build without PT_FIXTURES=1',
+    ]);
+  });
+  it('ignores the names inside scripts and comments', () => {
+    expect(checkFixtureContent([page('a.html', '<script>"Brand A"</script><!-- Brand B -->')])).toEqual([]);
+  });
+});
+
+describe('draft rubric noindex', () => {
+  const noindex = '<meta name="robots" content="noindex, nofollow">';
+  const board = (path: string, head = '') => page(path, `<html><head>${head}</head><body data-board-page>`);
+  it('passes when every board page is noindex while the rubric is a draft', () => {
+    expect(checkDraftNoindex([board('index.html', noindex), board('page/x/index.html', noindex), page('watchlist/index.html', '<body>')], '1.0-draft')).toEqual([]);
+  });
+  it('fails an indexable board page, marked or under a board path, while the rubric is a draft', () => {
+    const f = checkDraftNoindex([board('index.html'), page('brand/brand-a/index.html', '<body>'), page('privacy/index.html', '<body>')], '1.0-draft');
+    expect(f).toHaveLength(1);
+    expect(f[0]!.detail).toBe('rubric 1.0-draft is a draft but 2 board pages are indexable (index.html, brand/brand-a/index.html)');
+  });
+  it('does not apply once the rubric is approved', () => {
+    expect(checkDraftNoindex([board('index.html')], '1.0')).toEqual([]);
+  });
+  it('leaves the holding page alone', () => {
+    expect(checkDraftNoindex([page('index.html', '<body><h1>Retail homepages, scored</h1>')], '1.0-draft')).toEqual([]);
   });
 });
 

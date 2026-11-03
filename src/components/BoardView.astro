@@ -1,0 +1,87 @@
+---
+// One night's board under one filter. / renders it unfiltered; every other
+// filter is a built page at /board/<vertical>/<kind>/ so the filter chips
+// work as plain links without JS.
+import Scoreboard from './Scoreboard.astro';
+import PageMiniCard from './PageMiniCard.astro';
+import HowScoresCard from './HowScoresCard.astro';
+import WatchlistCard from './WatchlistCard.astro';
+import SisterSites from './SisterSites.astro';
+import { RUBRIC_TAG, TOTAL_MAX } from '../config/rubric';
+import { boardStats, missedMatches, rowMatches, type Filter } from '../lib/board-filter';
+import { flatten } from '../lib/boards';
+import { brandPages } from '../lib/brands';
+import { getBoardNights } from '../lib/content';
+import { formatLong } from '../lib/dates';
+import { bestAndWorst, rank } from '../lib/scoring';
+import type { ScoreboardNight } from '../lib/schemas';
+
+interface Props {
+  night: ScoreboardNight;
+  filter: Filter;
+}
+const { night, filter } = Astro.props;
+
+const ranked = rank(flatten([night]));
+const { best, worst, worstIsCap } = bestAndWorst(flatten([night]));
+const brandsWithPages = new Set(brandPages(await getBoardNights()).map((b) => b.slug));
+
+// The server-rendered stats describe the filtered rows; the filter script
+// recomputes them in place.
+const stats = boardStats(
+  ranked.filter((s) => rowMatches({ vertical: s.page.vertical, kind: s.page.homepage_kind }, filter)),
+  night.not_captured.filter((n) => missedMatches(n.vertical, filter)).length,
+);
+---
+<div class="board-layout">
+  <div class="board-main">
+    <header class="hero">
+      <p class="eyebrow">{formatLong(night.date)} · {RUBRIC_TAG}</p>
+      <h1 class="display">Last night's homepages, scored</h1>
+    </header>
+
+    <dl class="stats board-stats" aria-live="polite">
+      <div class="stat"><dt class="eyebrow label">Pages scored</dt><dd class="value" data-stat="count">{stats.count}</dd></div>
+      <div class="stat"><dt class="eyebrow label">Average</dt><dd class="value"><span data-stat="avg">{stats.avg}</span><small>/{TOTAL_MAX}</small></dd></div>
+      <div class="stat"><dt class="eyebrow label">Hard fails</dt><dd class="value accent" data-stat="fails">{stats.fails}</dd></div>
+      <div class="stat"><dt class="eyebrow label">Not captured</dt><dd class="value" data-stat="missed">{stats.missed}</dd></div>
+    </dl>
+
+    <div class="pair">
+      {best && <PageMiniCard page={best.page} label="Best homepage last night" tone="best" />}
+      {worst && <PageMiniCard page={worst.page} label={worstIsCap ? 'Hard fail last night' : 'Lowest score last night'} tone="fail" />}
+    </div>
+
+    <section class="section" aria-labelledby="board-heading">
+      <h2 id="board-heading" class="sr-only">Every homepage, ranked</h2>
+      <Scoreboard ranked={ranked} notCaptured={night.not_captured} filter={filter} brandsWithPages={brandsWithPages} />
+    </section>
+
+    <SisterSites />
+  </div>
+
+  <aside class="board-rail" aria-label="About the board">
+    <HowScoresCard />
+    <WatchlistCard />
+  </aside>
+</div>
+
+<style>
+  .board-layout { display: grid; gap: var(--gap); }
+  .board-main { min-width: 0; }
+  .board-rail { display: grid; gap: 24px; align-content: start; }
+  .hero h1 { margin-top: 12px; font-size: clamp(2.375rem, 1.2rem + 4vw, 4.5rem); }
+  .board-stats { margin-top: 24px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
+  .board-stats .stat { display: flex; flex-direction: column-reverse; justify-content: flex-end; }
+  .board-stats .value { font-size: 1.625rem; }
+  .pair { display: grid; gap: 12px; margin-top: 28px; }
+
+  @media (min-width: 760px) {
+    .board-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .board-stats .value { font-size: 2rem; }
+    .pair { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  }
+  @media (min-width: 980px) {
+    .board-layout { grid-template-columns: minmax(0, 1fr) 300px; }
+  }
+</style>

@@ -1,0 +1,158 @@
+---
+// One homepage on one night. Phone first: the verdict leads, then the
+// screenshot and details, the eight dimensions and the checks. From 980px the
+// screenshot and details sit in a left column beside the rest.
+import type { GetStaticPaths } from 'astro';
+import Base from '../../layouts/Base.astro';
+import Verdict from '../../components/Verdict.astro';
+import DimensionList from '../../components/DimensionList.astro';
+import PhoneShot from '../../components/PhoneShot.astro';
+import { BANDS, HOMEPAGE_KINDS, TOTAL_MAX } from '../../config/rubric';
+import { SITE, mailto } from '../../config/site';
+import { verticalLabel } from '../../config/verticals';
+import type { FlatPage } from '../../lib/boards';
+import { getAllPages } from '../../lib/content';
+import { formatLong, formatMedium } from '../../lib/dates';
+import { ogPath } from '../../lib/og';
+import type { CheckResult } from '../../lib/schemas';
+import { score } from '../../lib/scoring';
+
+export const getStaticPaths = (async () => {
+  return (await getAllPages()).map((page) => ({ params: { id: page.id }, props: { page } }));
+}) satisfies GetStaticPaths;
+
+interface Props { page: FlatPage }
+const { page } = Astro.props;
+const s = score(page);
+const night = formatMedium(page.night);
+const resultLabel: Record<CheckResult, string> = { pass: 'Pass', fail: 'Fail', unverified: 'Not verified' };
+---
+<Base
+  title={`${page.brand}: homepage scorecard, ${night}`}
+  description={`${page.brand} homepage scored ${s.total}/${TOTAL_MAX} (${BANDS[s.band].label}) on ${night}.`}
+  ogImage={ogPath.page(page.id)}
+  boardPage
+>
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <ol>
+      <li><a href="/">Board</a></li>
+      <li><a href={`/brand/${page.brand_slug}/`}>{page.brand}</a></li>
+      <li aria-current="page">{night}</li>
+    </ol>
+  </nav>
+  <p class="eyebrow">Homepage scorecard · {formatLong(page.night)}</p>
+  <h1 class="display sc-title">{page.brand}</h1>
+
+  <div class="sc">
+    <div class="sc-verdict"><Verdict page={page} /></div>
+
+    <div class="sc-side">
+      <PhoneShot
+        screenshot={page.screenshot}
+        alt={`Screenshot of the ${page.brand} homepage on ${night}, phone, above the fold`}
+        caption={`${night} · phone, above the fold`}
+      />
+      <dl class="meta">
+        <div><dt class="eyebrow">Homepage URL</dt><dd class="mono meta-url">{page.url}</dd></div>
+        <div><dt class="eyebrow">Vertical</dt><dd>{verticalLabel(page.vertical)}</dd></div>
+        <div><dt class="eyebrow">Kind</dt><dd>{HOMEPAGE_KINDS[page.homepage_kind]}</dd></div>
+        <div><dt class="eyebrow">Hero headline</dt><dd>
+          {page.hero_headline ? <span class="meta-strong">{page.hero_headline}</span> : <span class="muted">Headline is in an image</span>}
+          {page.hero_subhead && <span class="meta-sub">{page.hero_subhead}</span>}
+        </dd></div>
+        <div><dt class="eyebrow">Primary CTA</dt><dd>
+          {page.primary_cta ? (
+            <>
+              <span class="meta-strong">{page.primary_cta.text}</span>
+              {page.primary_cta.href && <span class="meta-sub mono">{page.primary_cta.href}</span>}
+            </>
+          ) : <span class="muted">None in the first screen</span>}
+        </dd></div>
+      </dl>
+    </div>
+
+    <section class="sc-dims" aria-labelledby="dims-heading">
+      <h2 id="dims-heading" class="eyebrow sc-h2">Dimensions</h2>
+      <DimensionList dimensions={page.dimensions} />
+    </section>
+
+    <section class="sc-checks" aria-labelledby="checks-heading">
+      <h2 id="checks-heading" class="eyebrow sc-h2">Checks</h2>
+      {page.checks.length ? (
+        <ul class="checks">
+          {page.checks.map((c) => (
+            <li class:list={['check', `check--${c.result}`]}>
+              <span class="check-result mono">{resultLabel[c.result]}</span>
+              <span class="check-name">{c.name}</span>
+              {c.detail && <span class="check-detail">{c.detail}</span>}
+            </li>
+          ))}
+        </ul>
+      ) : <p class="muted">No checks recorded for this page.</p>}
+    </section>
+
+    <div class="sc-foot">
+      <p class="disagree">
+        Think we got this wrong? Email <a class="addr" href={mailto(`Score question: ${page.id}`)} draggable="false">{SITE.contactEmail}</a>. We reply within 2 business days and fix confirmed errors within 7.
+      </p>
+      <p class="sc-links">
+        <a class="btn btn--ghost" href={`/brand/${page.brand_slug}/`}>Every night for {page.brand}</a>
+        <a class="btn btn--ghost" href="/">Back to the board</a>
+      </p>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .sc-title { margin-top: 10px; overflow-wrap: anywhere; }
+  .sc { display: grid; gap: 28px; margin-top: 24px; }
+  .sc > * { min-width: 0; }
+  .sc-h2 { margin-bottom: 10px; }
+
+  .sc-side { display: grid; gap: 20px; }
+  .meta { background: var(--surface); border: 1px solid var(--rule); }
+  .meta > div { display: grid; gap: 2px; padding: 12px 16px; border-top: 1px solid var(--rule-2); }
+  .meta > div:first-child { border-top: 0; }
+  .meta dt { padding-top: 3px; }
+  .meta dd { overflow-wrap: anywhere; }
+  .meta-url { font-size: var(--text-sm); }
+  .meta-strong { font-weight: 600; }
+  .meta-sub { display: block; margin-top: 2px; font-size: var(--text-sm); color: var(--ink-2); }
+
+  .checks { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .check { background: var(--surface); border: 1px solid var(--rule); padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+  .check-result { font-weight: 700; font-size: 0.8125rem; letter-spacing: var(--tracking); text-transform: uppercase; }
+  .check--pass .check-result { color: var(--strong-fg); }
+  .check--fail .check-result { color: var(--accent); }
+  .check--fail { border-color: var(--accent); }
+  .check--unverified .check-result { color: var(--muted); }
+  .check--unverified { border-style: dashed; }
+  .check-name { font-weight: 600; }
+  .check-detail { font-size: var(--text-sm); color: var(--ink-2); }
+
+  .disagree { padding-top: 16px; border-top: 1px solid var(--rule); color: var(--ink-2); }
+  /* The address stays selectable text; the mailto is a convenience. */
+  .addr { user-select: text; -webkit-user-drag: none; overflow-wrap: anywhere; }
+  .sc-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+
+  @media (min-width: 520px) {
+    .meta > div { grid-template-columns: 112px minmax(0, 1fr); gap: 12px; }
+  }
+  @media (min-width: 760px) {
+    .sc-side { grid-template-columns: 280px minmax(0, 1fr); align-items: start; }
+  }
+  @media (min-width: 980px) {
+    .sc {
+      grid-template-columns: 340px minmax(0, 1fr);
+      grid-template-rows: auto auto auto 1fr;
+      grid-template-areas: 'side verdict' 'side dims' 'side checks' 'side foot';
+      gap: 28px var(--gap);
+      align-items: start;
+    }
+    .sc-verdict { grid-area: verdict; }
+    .sc-side { grid-area: side; grid-template-columns: minmax(0, 1fr); }
+    .sc-dims { grid-area: dims; }
+    .sc-checks { grid-area: checks; }
+    .sc-foot { grid-area: foot; }
+  }
+</style>

@@ -1,0 +1,36 @@
+---
+// The board under one filter, built so the filter chips work as plain links
+// without JS: /board/<vertical>/<kind>/ for every vertical and kind on the
+// latest night (and "all"), except all/all, which is /. These repeat the
+// board, so they are always noindex and out of the sitemap.
+import type { GetStaticPaths } from 'astro';
+import Base from '../../../layouts/Base.astro';
+import BoardView from '../../../components/BoardView.astro';
+import { HOMEPAGE_KINDS, HOMEPAGE_KIND_KEYS, type HomepageKind } from '../../../config/rubric';
+import { VERTICAL_KEYS, verticalLabel, type VerticalKey } from '../../../config/verticals';
+import { ALL } from '../../../lib/board-filter';
+import { getLatestNight } from '../../../lib/content';
+import type { ScoreboardNight } from '../../../lib/schemas';
+
+export const getStaticPaths = (async () => {
+  const night = await getLatestNight();
+  if (!night) return [];
+  const verticals = [ALL, ...VERTICAL_KEYS.filter((k) => night.pages.some((p) => p.vertical === k) || night.not_captured.some((n) => n.vertical === k))];
+  const kinds = [ALL, ...HOMEPAGE_KIND_KEYS.filter((k) => night.pages.some((p) => p.homepage_kind === k))];
+  return verticals
+    .flatMap((vertical) => kinds.map((kind) => ({ vertical, kind })))
+    .filter((f) => !(f.vertical === ALL && f.kind === ALL))
+    .map((f) => ({ params: f, props: { night } }));
+}) satisfies GetStaticPaths;
+
+interface Props { night: ScoreboardNight }
+const { night } = Astro.props;
+const { vertical, kind } = Astro.params as { vertical: string; kind: string };
+const names = [
+  vertical === ALL ? undefined : verticalLabel(vertical as VerticalKey),
+  kind === ALL ? undefined : HOMEPAGE_KINDS[kind as HomepageKind],
+].filter(Boolean);
+---
+<Base title={`Board: ${names.join(', ')}`} noindex boardPage>
+  <BoardView night={night} filter={{ vertical, kind }} />
+</Base>

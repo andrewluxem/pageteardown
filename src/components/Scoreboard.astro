@@ -1,73 +1,99 @@
 ---
-import ScoreBadge from './ScoreBadge.astro';
+// The ranked board for one night. Every row and not-captured brand is in the
+// markup on every filtered page; the ones outside the filter carry `hidden`,
+// so the page reads right without JS and the script can refilter in place.
 import Legend from './Legend.astro';
-import { INDUSTRY_KEYS, industryLabel } from '../config/industries';
-import { DIMENSIONS } from '../config/rubric';
+import { BANDS, DIMENSIONS, HOMEPAGE_KINDS, HOMEPAGE_KIND_KEYS, TOTAL_MAX } from '../config/rubric';
+import { VERTICAL_KEYS, verticalLabel } from '../config/verticals';
+import { ALL, boardHref, missedMatches, rowMatches, type Filter } from '../lib/board-filter';
+import type { FlatPage } from '../lib/boards';
 import { cappingDimension, type Scored } from '../lib/scoring';
-import type { Email } from '../lib/schemas';
+import type { NotCaptured } from '../lib/schemas';
 
-interface Props { ranked: Scored<Email>[] }
-const { ranked } = Astro.props;
-
-const present = INDUSTRY_KEYS.filter((k) => ranked.some((s) => s.email.industry === k)).map((k) => ({
-  key: k,
-  label: industryLabel(k),
-  count: ranked.filter((s) => s.email.industry === k).length,
-}));
-
-function flagFor(s: Scored<Email>): string | undefined {
-  const parts: string[] = [];
-  const cap = cappingDimension(s.email);
-  if (cap) parts.push(`Capped: ${DIMENSIONS[cap]} scored 1`);
-  const failed = s.email.checks.filter((c) => c.result === 'fail').map((c) => c.name);
-  if (failed.length) parts.push(`Failed check: ${failed.join(', ')}`);
-  return parts.length ? parts.join(' · ') : undefined;
+interface Props {
+  ranked: Scored<FlatPage>[];
+  notCaptured: NotCaptured[];
+  filter: Filter;
+  /** Brand slugs that have a brand page, so a not-captured brand can link to its history. */
+  brandsWithPages: Set<string>;
 }
-const kindLabel = { campaign: 'Campaign', welcome: 'Welcome', transactional: 'Transactional' } as const;
----
-<div class="board-wrap" data-board>
-  <div class="filters" data-filters hidden>
-    <div class="chips-scroll">
-      <ul class="chips" aria-label="Filter by industry">
-        <li><button type="button" class="chip" aria-pressed="true" data-industry-filter="all">All</button></li>
-        {present.map((p) => (
-          <li><button type="button" class="chip" aria-pressed="false" data-industry-filter={p.key}>{p.label}</button></li>
-        ))}
-      </ul>
-    </div>
-    <button type="button" class="toggle" aria-pressed="true" data-campaigns-only>
-      <span class="toggle-box" aria-hidden="true"></span>
-      Campaigns only
-    </button>
-  </div>
+const { ranked, notCaptured, filter, brandsWithPages } = Astro.props;
 
-  <div class="board-scroll">
-    <div class="board">
-      <div class="board-head" aria-hidden="true">
-        <span>#</span><span>Brand</span><span>Industry</span><span>Subject</span><span>Type</span><span class="c-score">Score</span>
+const verticals = VERTICAL_KEYS.filter((k) => ranked.some((s) => s.page.vertical === k) || notCaptured.some((n) => n.vertical === k));
+const kinds = HOMEPAGE_KIND_KEYS.filter((k) => ranked.some((s) => s.page.homepage_kind === k));
+const groups = [
+  { key: 'vertical' as const, label: 'Vertical', options: verticals.map((k) => ({ value: k, label: verticalLabel(k) })) },
+  { key: 'kind' as const, label: 'Kind', options: kinds.map((k) => ({ value: k, label: HOMEPAGE_KINDS[k] })) },
+];
+
+let shown = 0;
+const rows = ranked.map((s) => {
+  const visible = rowMatches({ vertical: s.page.vertical, kind: s.page.homepage_kind }, filter);
+  return { s, visible, rank: visible ? ++shown : undefined, cap: cappingDimension(s.page) };
+});
+const missed = notCaptured.map((n) => ({ n, visible: missedMatches(n.vertical, filter) }));
+---
+<div class="board-wrap" data-board data-vertical={filter.vertical} data-kind={filter.kind}>
+  <nav class="filters" aria-label="Filter the board">
+    {groups.map((g) => (
+      <div class="filter-group">
+        <span class="eyebrow filter-label" id={`filter-${g.key}`}>{g.label}</span>
+        <div class="chips-scroll">
+          <ul class="chips" aria-labelledby={`filter-${g.key}`}>
+            {[{ value: ALL, label: 'All' }, ...g.options].map((o) => (
+              <li>
+                <a
+                  class="chip"
+                  href={boardHref({ ...filter, [g.key]: o.value })}
+                  data-filter={g.key}
+                  data-value={o.value}
+                  aria-current={filter[g.key] === o.value ? 'true' : undefined}
+                >{o.label}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
-      <ol class="board-rows" aria-label="Emails ranked by score">
-        {ranked.map((s, i) => {
-          const flag = flagFor(s);
-          return (
-            <li class="row" data-industry={s.email.industry} data-kind={s.email.kind} data-total={s.total} data-capped={String(s.capped)}>
-              <span class="c-rank num" data-rank>{i + 1}</span>
-              <span class="c-brand">{s.email.brand}<span class="c-industry-inline"> · {industryLabel(s.email.industry)}</span></span>
-              <span class="c-industry">{industryLabel(s.email.industry)}</span>
-              <span class="c-subject">
-                <a class="row-link" href={`/email/${s.email.id}/`}>{s.email.subject}</a>
-                {flag && <span class="flag">{flag}</span>}
-              </span>
-              <span class="c-type">{kindLabel[s.email.kind]}</span>
-              <span class="c-score"><ScoreBadge total={s.total} band={s.band} /></span>
-            </li>
-          );
-        })}
-      </ol>
-      <p class="board-empty" data-empty hidden>No emails match these filters.</p>
+    ))}
+  </nav>
+
+  <div class="board">
+    <div class="board-head" aria-hidden="true">
+      <span>#</span><span>Brand</span><span>Vertical</span><span>Hero headline</span><span class="head-total">Total</span><span>Band</span>
     </div>
+    <ol class="board-rows" aria-label="Homepages ranked by score">
+      {rows.map(({ s, visible, rank, cap }) => (
+        <li class="row" data-row data-vertical={s.page.vertical} data-kind={s.page.homepage_kind} data-total={s.total} data-capped={String(s.capped)} hidden={!visible}>
+          <span class="c-rank num" data-rank>{rank}</span>
+          <span class="c-brand"><a class="row-link" href={`/page/${s.page.id}/`}>{s.page.brand}</a></span>
+          <span class="c-vertical">{verticalLabel(s.page.vertical)}</span>
+          <span class="c-headline">
+            {s.page.hero_headline ? <span class="headline">{s.page.hero_headline}</span> : <span class="headline headline--image">Headline is in an image</span>}
+            {cap && <span class="flag">Capped: {DIMENSIONS[cap]} scored 1</span>}
+          </span>
+          <span class="c-total num">{s.total}<span class="of">/{TOTAL_MAX}</span></span>
+          <span class="c-band"><span class:list={['badge', `badge--${s.band}`]}>{BANDS[s.band].label}</span></span>
+        </li>
+      ))}
+    </ol>
+    <p class="board-empty" data-empty hidden={shown > 0}>No homepages match these filters.</p>
   </div>
   <Legend />
+
+  {notCaptured.length > 0 && (
+    <section class="section missed" data-missed-section hidden={!missed.some((m) => m.visible)} aria-labelledby="missed-heading">
+      <h2 id="missed-heading" class="display missed-title">Not captured</h2>
+      <ul class="missed-list">
+        {missed.map(({ n, visible }) => (
+          <li data-missed data-vertical={n.vertical} hidden={!visible}>
+            <span class="missed-brand">{brandsWithPages.has(n.brand_slug) ? <a href={`/brand/${n.brand_slug}/`}>{n.brand}</a> : n.brand}</span>
+            <span class="missed-vertical eyebrow">{verticalLabel(n.vertical)}</span>
+            <span class="missed-reason">{n.reason}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
 </div>
 
 <script>
@@ -76,64 +102,74 @@ const kindLabel = { campaign: 'Campaign', welcome: 'Welcome', transactional: 'Tr
 </script>
 
 <style>
-  .filters { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; margin-bottom: 16px; }
-  .chips-scroll { min-width: 0; flex: 1 1 400px; }
-  .toggle {
-    display: inline-flex; align-items: center; gap: 10px; min-height: var(--touch); padding: 0 4px;
-    background: none; border: 0; cursor: pointer; font-family: var(--font-mono); font-size: 0.8125rem; text-transform: uppercase; letter-spacing: var(--tracking);
-  }
-  .toggle-box { width: 36px; height: 20px; border: 2px solid var(--ink); position: relative; flex: none; }
-  .toggle-box::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; background: var(--ink); }
-  .toggle[aria-pressed='true'] .toggle-box { background: var(--ink); }
-  .toggle[aria-pressed='true'] .toggle-box::after { left: 18px; background: var(--surface); }
+  .filters { display: grid; gap: 12px; margin-bottom: 16px; }
+  .filter-group { display: grid; gap: 6px; min-width: 0; }
+  .chips-scroll { min-width: 0; overflow-x: auto; margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); }
+  .chips-scroll .chips { flex-wrap: nowrap; width: max-content; }
+  .chips a.chip { min-height: var(--touch); text-decoration: none; white-space: nowrap; }
+  .chips a.chip:hover { border-color: var(--muted); }
+  .chips a.chip[aria-current='true'] { background: var(--ink); color: var(--on-dark); border-color: var(--ink); }
 
-  .board-scroll { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
-  /* Spec said 860px; the main column is ~820px at 1280 beside the rail, so 860
-     clipped the score column at desktop. 800px fits and still scrolls on tablets. */
-  .board { min-width: 800px; }
-  .board-head, .row {
-    display: grid;
-    grid-template-columns: 32px minmax(124px, 1.1fr) 96px minmax(0, 3fr) 104px 84px;
-    gap: 0 16px; align-items: center; padding: 0 16px;
+  .board-head { display: none; }
+  .board-rows { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  .row {
+    position: relative; display: grid; min-height: var(--touch);
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-areas: 'rank brand total' 'rank vertical band' 'rank headline headline';
+    gap: 2px 12px; align-items: center; padding: 12px; background: var(--surface); border: 1px solid var(--rule);
   }
-  .board-head {
-    background: var(--header-bg-2); min-height: 40px;
-    font-family: var(--font-mono); font-size: var(--eyebrow); font-weight: 500; text-transform: uppercase; letter-spacing: var(--tracking); color: var(--muted);
-  }
-  .board-rows { list-style: none; padding: 0; margin: 0; }
-  .row { position: relative; min-height: 60px; padding-block: 10px; border-top: 1px solid var(--rule-2); }
   .row:hover { background: var(--ground); }
   .row:focus-within { outline: 2px solid var(--accent); outline-offset: -2px; }
-  .row-link { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; font-weight: 500; }
+  .c-rank { grid-area: rank; align-self: start; color: var(--muted); }
+  .c-brand { grid-area: brand; font-weight: 600; min-width: 0; }
+  .c-vertical { grid-area: vertical; font-size: var(--text-sm); color: var(--ink-2); }
+  .c-headline { grid-area: headline; min-width: 0; margin-top: 4px; }
+  .c-total { grid-area: total; justify-self: end; font-weight: 600; font-size: 1.125rem; }
+  .c-band { grid-area: band; justify-self: end; }
+  .of { font-size: 0.75em; font-weight: 500; color: var(--muted); }
+  .row-link { text-decoration: none; overflow-wrap: anywhere; }
   .row-link:focus-visible { outline: none; }
   .row-link::after { content: ''; position: absolute; inset: 0; }
   .row:hover .row-link { text-decoration: underline; }
-  .c-subject { min-width: 0; }
-  .c-rank { color: var(--muted); }
-  .c-brand { font-weight: 600; }
-  .c-industry, .c-type { font-size: var(--text-sm); color: var(--ink-2); }
-  .c-industry-inline { display: none; }
-  .c-score { justify-self: end; }
-  .flag { display: block; margin-top: 2px; font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .board-empty { padding: 24px 16px; color: var(--muted); border-top: 1px solid var(--rule-2); }
+  .headline { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .headline--image { color: var(--muted); font-style: italic; }
+  .flag { display: block; margin-top: 2px; font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); }
+  .c-band .badge { min-width: 76px; min-height: 28px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .board-empty { padding: 24px 16px; color: var(--muted); background: var(--surface); border: 1px solid var(--rule); }
 
-  @media (max-width: 640px) {
-    .chips-scroll { flex-basis: 100%; overflow-x: auto; margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); }
-    .chips-scroll .chips { flex-wrap: nowrap; width: max-content; }
-    .board-scroll { overflow: visible; border: 0; background: none; }
-    .board { min-width: 0; }
-    .board-head { display: none; }
-    .board-rows { display: flex; flex-direction: column; gap: 8px; }
-    .row {
-      grid-template-columns: 72px minmax(0, 1fr);
-      grid-template-areas: 'score brand' 'score subject';
-      gap: 2px 14px; padding: 12px; border: 1px solid var(--rule); background: var(--surface);
+  .missed-title { font-size: var(--h3); line-height: 1; margin-bottom: 12px; }
+  .missed-list { list-style: none; padding: 0 16px; background: var(--surface); border: 1px solid var(--rule); }
+  .missed-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'brand vertical' 'reason reason'; gap: 2px 12px; padding-block: 12px; border-top: 1px solid var(--rule-2); }
+  .missed-list li:first-child { border-top: 0; }
+  .missed-brand { grid-area: brand; font-weight: 600; }
+  .missed-brand a { display: inline-block; padding-block: 12px; margin-block: -12px; }
+  .missed-vertical { grid-area: vertical; align-self: center; }
+  .missed-reason { grid-area: reason; color: var(--ink-2); font-size: var(--text-sm); }
+
+  @media (min-width: 760px) {
+    .filters { grid-template-columns: minmax(0, 1fr); }
+    .filter-group { grid-template-columns: 72px minmax(0, 1fr); align-items: center; gap: 12px; }
+    .chips-scroll { margin-inline: 0; padding-inline: 0; overflow: visible; }
+    .chips-scroll .chips { flex-wrap: wrap; width: auto; }
+    .board { border: 1px solid var(--rule); background: var(--surface); }
+    .board-head, .row {
+      grid-template-columns: 32px minmax(120px, 1.1fr) minmax(96px, 0.9fr) minmax(0, 2.6fr) 64px 92px;
+      grid-template-areas: none;
+      gap: 0 14px; padding: 0 16px;
     }
-    .c-rank, .c-industry, .c-type { display: none; }
-    .c-industry-inline { display: inline; font-weight: 400; color: var(--muted); }
-    .c-brand { grid-area: brand; font-size: var(--text-sm); }
-    .c-subject { grid-area: subject; }
-    .c-score { grid-area: score; justify-self: stretch; align-self: center; }
-    .c-score :global(.badge) { width: 100%; min-height: 44px; }
+    .board-head {
+      display: grid; align-items: center; background: var(--header-bg-2); min-height: 40px;
+      font-family: var(--font-mono); font-size: var(--eyebrow); font-weight: 500; text-transform: uppercase; letter-spacing: var(--tracking); color: var(--muted);
+    }
+    .board-rows { gap: 0; }
+    .row { min-height: 60px; padding-block: 10px; border: 0; border-top: 1px solid var(--rule-2); background: none; }
+    .row > * { grid-area: auto; }
+    .c-rank { align-self: center; }
+    .c-headline { margin-top: 0; }
+    .head-total { justify-self: end; }
+    .c-band { justify-self: start; }
+    .board-empty { border: 0; border-top: 1px solid var(--rule-2); }
+    .missed-list li { grid-template-columns: minmax(140px, 1fr) minmax(120px, 0.8fr) minmax(0, 2fr); grid-template-areas: 'brand vertical reason'; align-items: center; }
+    .missed-vertical { align-self: center; }
   }
 </style>

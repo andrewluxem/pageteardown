@@ -19,20 +19,16 @@ export interface Page {
 /** Vercel Web Analytics loads its script from this same-site path. */
 export const VERCEL_INSIGHTS_PATH = '/_vercel/insights/';
 
-/** The fictional fixture brands. Real brands only ever arrive via the pipeline. */
-export const FIXTURE_BRANDS = [
-  'Fernhill Goods',
-  'Ostra Coffee Co.',
-  'Marlow & Pike',
-  'The Morning Ledger',
-  'Ledgerly',
-  'Pulsewear',
-  'Brightside Pet',
-  'Tidewater Travel',
-  'Northgate Bank',
-  'Kestrel Outdoor',
-  'Cinder Kitchen',
-] as const;
+/**
+ * Fixture boards (tests/fixtures/scoreboard/) use placeholder brands named
+ * "Brand A" to "Brand T" and screenshots under /shots/fixtures/, and every
+ * fixture build carries a data-pt-fixture banner. Real brands only ever
+ * arrive via the pipeline, so none of these may reach src/content/ or a
+ * production build.
+ */
+export const FIXTURE_NAME = /\bBrand [A-Z]\b/g;
+export const FIXTURE_SHOTS = '/shots/fixtures/';
+export const FIXTURE_MARKER = 'data-pt-fixture';
 
 export const PLACEHOLDER = /\[[A-Z][A-Za-z ]{2,60}\]/g;
 
@@ -158,8 +154,9 @@ export function checkTodos(files: TextFile[]): Failure[] {
 
 export function checkFixtureBrands(files: TextFile[]): Failure[] {
   return files.flatMap((f) => {
-    const found = FIXTURE_BRANDS.filter((b) => f.text.includes(b));
-    return found.length ? [{ detail: `${f.path}: ${list([...found], 11)}` }] : [];
+    const found = [...new Set(f.text.match(FIXTURE_NAME) ?? [])];
+    if (f.text.includes(FIXTURE_SHOTS)) found.push(FIXTURE_SHOTS);
+    return found.length ? [{ detail: `${f.path}: ${list(found, 11)}` }] : [];
   });
 }
 
@@ -201,26 +198,30 @@ export function checkAndrewAnywhere(files: TextFile[]): Failure[] {
 // ---------- Built HTML ----------
 
 /**
- * Bracketed text that a sender wrote into an email's subject, preheader, brand
- * or themes on a scoreboard (e.g. a subject that starts "[Welcome Flow Wool
- * Variation B]"). The site quotes it as is, so it is not a placeholder.
+ * Bracketed text a brand wrote into its own homepage copy or name on a board
+ * (e.g. a hero headline "[NEW] Winter coats"). The site quotes it as is, so
+ * it is not a placeholder.
  */
-export function senderCopyBrackets(boards: { emails?: Record<string, unknown>[] }[]): Set<string> {
+export function pageCopyBrackets(boards: { pages?: Record<string, unknown>[]; not_captured?: Record<string, unknown>[] }[]): Set<string> {
   const out = new Set<string>();
   for (const b of boards) {
-    for (const e of b.emails ?? []) {
-      const copy = [e.subject, e.preheader, e.brand, ...(Array.isArray(e.themes) ? e.themes : [])];
-      for (const s of copy) if (typeof s === 'string') for (const m of s.match(PLACEHOLDER) ?? []) out.add(m);
-    }
+    const copy = [
+      ...(b.pages ?? []).flatMap((p) => {
+        const cta = p.primary_cta as { text?: unknown } | null | undefined;
+        return [p.brand, p.hero_headline, p.hero_subhead, cta?.text];
+      }),
+      ...(b.not_captured ?? []).map((n) => n.brand),
+    ];
+    for (const s of copy) if (typeof s === 'string') for (const m of s.match(PLACEHOLDER) ?? []) out.add(m);
   }
   return out;
 }
 
-export function checkPlaceholders(pages: Page[], senderCopy: Set<string> = new Set()): Failure[] {
+export function checkPlaceholders(pages: Page[], pageCopy: Set<string> = new Set()): Failure[] {
   const where = new Map<string, string[]>();
   for (const p of pages) {
     for (const m of new Set(visible(p.html).match(PLACEHOLDER) ?? [])) {
-      if (!senderCopy.has(m)) where.set(m, [...(where.get(m) ?? []), p.path]);
+      if (!pageCopy.has(m)) where.set(m, [...(where.get(m) ?? []), p.path]);
     }
   }
   return [...where.entries()].sort().map(([ph, paths]) => ({ detail: `${ph} on ${list(paths)}` }));
@@ -279,4 +280,37 @@ export function checkFooterContact(pages: Page[], contactEmail: string): Failure
     if (!footer) return [{ detail: `${p.path}: no <footer>` }];
     return footer.includes(`mailto:${contactEmail}`) ? [] : [{ detail: `${p.path}: footer lacks ${contactEmail}` }];
   });
+}
+
+// ---------- The board ----------
+
+/**
+ * A production build must not carry fixture content: a "Brand A" style
+ * name, a /shots/fixtures/ path or the fixture banner's marker. One failure
+ * per kind, listing the pages.
+ */
+export function checkFixtureContent(pages: Page[]): Failure[] {
+  const kinds: [string, (html: string) => boolean][] = [
+    ['"Brand A" style placeholder names', (h) => new RegExp(FIXTURE_NAME.source).test(visible(h)) || /\b(?:alt|content)="[^"]*\bBrand [A-Z]\b/.test(h)],
+    [`${FIXTURE_SHOTS} screenshots`, (h) => h.includes(FIXTURE_SHOTS)],
+    [`the ${FIXTURE_MARKER} banner`, (h) => h.includes(FIXTURE_MARKER)],
+  ];
+  return kinds.flatMap(([what, test]) => {
+    const hits = pages.filter((p) => test(p.html)).map((p) => p.path);
+    return hits.length ? [{ detail: `${what} on ${hits.length} pages (${list(hits)}); build without PT_FIXTURES=1` }] : [];
+  });
+}
+
+/** Pages of the board: marked by Base.astro, or under a board-only path. */
+export function isBoardPage(p: Page): boolean {
+  return /<body\b[^>]*\bdata-board-page\b/i.test(p.html) || /^(page|brand|board|methodology)\//.test(p.path);
+}
+
+/** While the rubric version says draft, every board page must be noindex. */
+export function checkDraftNoindex(pages: Page[], rubricVersion: string): Failure[] {
+  if (!rubricVersion.includes('draft')) return [];
+  const open = pages.filter((p) => isBoardPage(p) && isIndexable(p.html)).map((p) => p.path);
+  return open.length
+    ? [{ detail: `rubric ${rubricVersion} is a draft but ${open.length} board pages are indexable (${list(open)})` }]
+    : [];
 }
