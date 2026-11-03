@@ -8,14 +8,19 @@ import { VERTICAL_KEYS } from '../config/verticals';
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Public host suffix of the Vercel Blob store that holds screenshots. */
-export const BLOB_HOST_SUFFIX = '.public.blob.vercel-storage.com';
+/**
+ * Public host of the Vercel Blob store that holds screenshots
+ * (pageteardown-shots). vercel.json's img-src allows exactly this host, so a
+ * URL from any other store would render as a broken image; the schema refuses
+ * it instead. tests/csp.test.ts keeps the two in step.
+ */
+export const BLOB_HOST = 'jvx7f1mxqao2jbqs.public.blob.vercel-storage.com';
 
 /**
  * A screenshot reference: a path under /shots/ (fixtures, files in
- * public/shots/) or an https URL on a Vercel Blob public host
- * (*.public.blob.vercel-storage.com) with no credentials, port or empty
- * path. Any other URL is refused. Same rule as Inbox Teardown's scorer.
+ * public/shots/) or an https URL on the site's Blob store (BLOB_HOST) with
+ * no credentials, port or empty path. Any other URL is refused, including
+ * one from another Blob store.
  */
 export function isScreenshotRef(v: string): boolean {
   if (!v || /\s/.test(v)) return false;
@@ -28,7 +33,7 @@ export function isScreenshotRef(v: string): boolean {
   }
   return (
     u.protocol === 'https:' &&
-    u.hostname.endsWith(BLOB_HOST_SUFFIX) &&
+    u.hostname === BLOB_HOST &&
     !u.username &&
     !u.password &&
     u.port === '' &&
@@ -111,13 +116,13 @@ const homepageBase = z.strictObject({
     .nullable(),
   dimensions: dimensionsSchema,
   checks: z.array(checkSchema).default([]),
-  // A local path under /shots/ or an https URL on the public Blob store
+  // A local path under /shots/ or an https URL on the site's Blob store
   // (isScreenshotRef). Real screenshots go to Blob, never into git.
   screenshot: z
     .string()
     .refine(
       isScreenshotRef,
-      `screenshot must be a path under /shots/ or an https URL on *${BLOB_HOST_SUFFIX}`,
+      `screenshot must be a path under /shots/ or an https URL on ${BLOB_HOST}`,
     )
     .nullable()
     .default(null),

@@ -141,13 +141,17 @@ describe('page fields', () => {
     'https://u@abc.public.blob.vercel-storage.com/x.webp',
     'https://abc.public.blob.vercel-storage.com:8443/x.webp',
     'https://abc.public.blob.vercel-storage.com/',
+    'https://abc123.public.blob.vercel-storage.com/shots/2026-10-30/brand-a-home.webp',
+    'http://jvx7f1mxqao2jbqs.public.blob.vercel-storage.com/shots/2026-10-30/brand-a-home.webp',
+    'https://x.jvx7f1mxqao2jbqs.public.blob.vercel-storage.com/shots/2026-10-30/brand-a-home.webp',
+    'https://jvx7f1mxqao2jbqs.public.blob.vercel-storage.com/',
     'shots/2026-10-30/a.webp',
     '/shots/',
     '',
   ])('rejects the screenshot %j', (screenshot) => {
     expect(scoreboardSchema.safeParse(withPage({ screenshot })).success).toBe(false);
   });
-  it.each(['https://abc123.public.blob.vercel-storage.com/shots/2026-10-30/brand-a-home.webp', '/shots/fixtures/placeholder-1.png', null])(
+  it.each(['https://jvx7f1mxqao2jbqs.public.blob.vercel-storage.com/shots/2026-10-30/brand-a-home.webp', '/shots/fixtures/placeholder-1.png', null])(
     'accepts the screenshot %j',
     (screenshot) => {
       expect(ok(withPage({ screenshot }))).toEqual([]);

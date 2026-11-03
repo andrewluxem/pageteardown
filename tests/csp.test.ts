@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { BLOB_HOST } from '../src/lib/schemas.ts';
 import { checkCspHashes, cspFromVercelJson, cspSources, inlineScriptHashes } from '../scripts/prelaunch-rules.ts';
 
 const ALERT = "'sha256-bhHHL3z2vDgxUt0W3dWQOrprscmda2Y5pLsLg4GF+pI='"; // alert(1)
@@ -39,14 +40,17 @@ describe('CSP hash rule', () => {
 
 describe('vercel.json headers', () => {
   it('sets a CSP for every path with the required directives', () => {
-    // No image host yet: the site's own Blob store is added here and in
-    // vercel.json when it exists.
-    expect(cspSources(csp, 'img-src')).toEqual(["'self'", 'data:']);
+    // The only image host is the site's own Blob store, by exact host.
+    expect(cspSources(csp, 'img-src')).toEqual(["'self'", 'data:', 'https://jvx7f1mxqao2jbqs.public.blob.vercel-storage.com']);
     expect(cspSources(csp, 'form-action')).toEqual(["'self'", 'https://fpqyuzkrshokqxtjtffi.supabase.co']);
     expect(cspSources(csp, 'frame-ancestors')).toEqual(["'none'"]);
     expect(cspSources(csp, 'base-uri')).toEqual(["'self'"]);
     expect(cspSources(csp, 'object-src')).toEqual(["'none'"]);
     expect(cspSources(csp, 'default-src')).toEqual(["'self'"]);
+  });
+  it('allows images from the same Blob host the content schema accepts', () => {
+    const hosts = cspSources(csp, 'img-src').filter((s) => s.startsWith('https://'));
+    expect(hosts).toEqual([`https://${BLOB_HOST}`]);
   });
   it('allows scripts only from the site and by hash', () => {
     const scripts = cspSources(csp, 'script-src');
