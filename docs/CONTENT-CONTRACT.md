@@ -44,7 +44,7 @@ pages:                              # at least one
       - { name: Main button link, result: fail, detail: "/collections/winter returns HTTP 404 on two attempts" }
       - { name: Other links, result: unverified, detail: "HTTP 403 on two attempts" }
       - { name: Page load, result: pass }
-    screenshot: null                   # or https://<store>.public.blob.vercel-storage.com/... (or "/shots/<file>" for fixtures)
+    screenshot: null                   # or https://jvx7f1mxqao2jbqs.public.blob.vercel-storage.com/... (or "/shots/<file>" for fixtures)
     correction:                        # optional; set when a published score changes
       date: 2026-11-04
       note: "Technical hygiene raised from 1 to 3: the link resolved on a recheck the same night."
@@ -73,10 +73,13 @@ Rules:
   `unverified` (shown as "Not verified"; Rubric v1 never lowers a score for it);
   `detail` is optional.
 - `screenshot` is `null`, a path under `/shots/`, or an `https://` URL whose
-  host ends with `.public.blob.vercel-storage.com` (no credentials, port or
-  empty path). Any other URL fails the build. Real screenshots live in the
-  public Blob store and are referenced by URL, never committed. The capture is
-  the 375x667 phone viewport at 2x (750x1334) or 3x (1125x2001).
+  host is exactly `jvx7f1mxqao2jbqs.public.blob.vercel-storage.com`, the
+  public Blob store `pageteardown-shots` (no credentials, port or empty path).
+  Any other URL fails the build, including one from another Blob store: the
+  CSP's `img-src` allows only this host, so it would show as a broken image.
+  Real screenshots live in that store and are referenced by URL, never
+  committed. The capture is the 375x667 phone viewport at 2x (750x1334) or 3x
+  (1125x2001).
 - `correction` is optional. When present, the scorecard shows "Corrected
   {date}: {note}" in the verdict block. Update the dimension scores themselves
   to the corrected values.
