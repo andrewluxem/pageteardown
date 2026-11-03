@@ -30,7 +30,7 @@ const size = page.screenshot ? await screenshotSize(page.screenshot) : FALLBACK_
       <H class="mini-brand"><a href={`/page/${page.id}/`}>{page.brand}</a></H>
       <ScoreBadge total={s.total} band={s.band} />
     </div>
-    <p class="mini-headline">{page.hero_headline ?? <span class="muted">Headline is in an image</span>}</p>
+    {page.hero_headline !== undefined && <p class="mini-headline">{page.hero_headline ?? <span class="muted">Headline is in an image</span>}</p>}
     <p class="mini-meta eyebrow">{verticalLabel(page.vertical)} · {HOMEPAGE_KINDS[page.homepage_kind]}</p>
     <p class="mini-note"><span class="mono mini-dim">{DIMENSIONS[low]} {page.dimensions[low].score}/5:</span> {page.dimensions[low].note}</p>
   </div>

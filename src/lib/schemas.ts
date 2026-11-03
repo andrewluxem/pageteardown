@@ -104,16 +104,20 @@ const homepageBase = z.strictObject({
   // The homepage captured, shown as text (never linked) on the scorecard.
   url: z.url({ protocol: /^https$/ }),
   captured_at: isoDateTime,
-  // Null when the headline is baked into an image (no live text).
-  hero_headline: z.string().min(1).nullable(),
+  // Null when the headline is baked into an image (no live text). Optional: a
+  // board may leave it out (the exporter does in v1), and the scorecard then
+  // shows no headline row.
+  hero_headline: z.string().min(1).nullable().optional(),
   hero_subhead: z.string().min(1).optional(),
-  // Null when no primary CTA is visible in the first screen.
+  // Null when no primary CTA is visible in the first screen. Optional, like
+  // hero_headline: left out, the scorecard shows no CTA row.
   primary_cta: z
     .strictObject({
       text: z.string().min(1),
       href: z.string().min(1).optional(),
     })
-    .nullable(),
+    .nullable()
+    .optional(),
   dimensions: dimensionsSchema,
   checks: z.array(checkSchema).default([]),
   // A local path under /shots/ or an https URL on the site's Blob store
@@ -164,6 +168,17 @@ export const notCapturedSchema = z.strictObject({
     .refine(isPublicReason, 'reason must be public wording (a sentence ending in a period), not an internal code'),
 });
 
+/**
+ * A brand whose page was captured and scored but is held for review (a check
+ * waiting on its ceiling review). The site shows HELD_REASON for it; the board
+ * carries no wording of its own.
+ */
+export const heldSchema = z.strictObject({
+  brand: z.string().min(1),
+  brand_slug: z.string().regex(SLUG, 'brand_slug must be lowercase, URL-safe'),
+  vertical: verticalSchema,
+});
+
 export const scoreboardSchema = z
   .strictObject({
     // The night the homepages were captured; the filename must match it.
@@ -173,6 +188,7 @@ export const scoreboardSchema = z
     rubric_version: z.string().min(1),
     pages: z.array(homepageSchema).min(1),
     not_captured: z.array(notCapturedSchema).default([]),
+    held: z.array(heldSchema).default([]),
   })
   .superRefine((night, ctx) => {
     const ids = new Set<string>();
@@ -202,6 +218,17 @@ export const scoreboardSchema = z
       }
       missed.add(n.brand_slug);
     });
+    const held = new Set<string>();
+    night.held.forEach((h, i) => {
+      const where = scored.has(h.brand_slug) ? 'pages' : missed.has(h.brand_slug) ? 'not_captured' : null;
+      if (where) {
+        ctx.addIssue({ code: 'custom', path: ['held', i, 'brand_slug'], message: `brand_slug "${h.brand_slug}" is in both ${where} and held` });
+      }
+      if (held.has(h.brand_slug)) {
+        ctx.addIssue({ code: 'custom', path: ['held', i, 'brand_slug'], message: `Duplicate held brand_slug "${h.brand_slug}"` });
+      }
+      held.add(h.brand_slug);
+    });
   });
 
 export const pageSchema = z.strictObject({
@@ -211,6 +238,7 @@ export const pageSchema = z.strictObject({
 
 export type Homepage = z.infer<typeof homepageSchema>;
 export type NotCaptured = z.infer<typeof notCapturedSchema>;
+export type Held = z.infer<typeof heldSchema>;
 export type ScoreboardNight = z.infer<typeof scoreboardSchema>;
 export type Dimensions = z.infer<typeof dimensionsSchema>;
 export type CheckResult = z.infer<typeof checkSchema>['result'];

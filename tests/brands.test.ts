@@ -7,6 +7,15 @@ const a = (score: number) => makePage({ brand: 'Brand A', brand_slug: 'brand-a',
 const b = makePage({ brand: 'Brand B', brand_slug: 'brand-b', dimensions: dims(3) });
 const missedA = { brand: 'Brand A', brand_slug: 'brand-a', vertical: 'apparel' as const, reason: 'The site blocked our capture browser.' };
 
+describe('held nights', () => {
+  it('shows a held night as a gap with no reason of its own', () => {
+    const heldA = { brand: 'Brand A', brand_slug: 'brand-a', vertical: 'apparel' as const };
+    const s = summarizeBrand([night('2026-10-26', [a(3), b]), night('2026-10-27', [b], [], [heldA])], 'brand-a')!;
+    expect(s.nights.map((n) => n.state)).toEqual(['scored', 'held']);
+    expect(s.nightsScored).toBe(1);
+  });
+});
+
 describe('brand summaries', () => {
   const nights = [
     night('2026-10-26', [a(3), b]),

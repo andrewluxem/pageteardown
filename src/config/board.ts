@@ -7,6 +7,9 @@ import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const BOARD_DIR = 'src/content/scoreboard';
+
+/** Shown for a brand in a board's `held` list, on the board and its brand page. */
+export const HELD_REASON = 'Score held for review.';
 export const FIXTURE_DIR = 'tests/fixtures/scoreboard';
 
 type Env = Record<string, string | undefined>;

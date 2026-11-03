@@ -12,6 +12,8 @@ export const WINDOW_NIGHTS = 30;
 export type Night =
   | { date: string; state: 'scored'; scored: Scored<FlatPage> }
   | { date: string; state: 'not_captured'; reason: string }
+  /** Captured and scored, but held for review (the board's `held` list). */
+  | { date: string; state: 'held' }
   /** A board was published that night without this brand on it. */
   | { date: string; state: 'absent' }
   /** No board was published that night. */
@@ -60,7 +62,8 @@ export function summarizeBrand(nights: ScoreboardNight[], slug: string, windowNi
     const page = mine.find((p) => p.night === date);
     if (page) return { date, state: 'scored', scored: score(page) };
     const missed = board.not_captured.find((n) => n.brand_slug === slug);
-    return missed ? { date, state: 'not_captured', reason: missed.reason } : { date, state: 'absent' };
+    if (missed) return { date, state: 'not_captured', reason: missed.reason };
+    return board.held.some((h) => h.brand_slug === slug) ? { date, state: 'held' } : { date, state: 'absent' };
   });
 
   return {

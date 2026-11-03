@@ -15,7 +15,7 @@ import type { ScoreboardNight } from '../../../lib/schemas';
 export const getStaticPaths = (async () => {
   const night = await getLatestNight();
   if (!night) return [];
-  const verticals = [ALL, ...VERTICAL_KEYS.filter((k) => night.pages.some((p) => p.vertical === k) || night.not_captured.some((n) => n.vertical === k))];
+  const verticals = [ALL, ...VERTICAL_KEYS.filter((k) => night.pages.some((p) => p.vertical === k) || night.not_captured.some((n) => n.vertical === k) || night.held.some((h) => h.vertical === k))];
   const kinds = [ALL, ...HOMEPAGE_KIND_KEYS.filter((k) => night.pages.some((p) => p.homepage_kind === k))];
   return verticals
     .flatMap((vertical) => kinds.map((kind) => ({ vertical, kind })))

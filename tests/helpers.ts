@@ -34,13 +34,19 @@ export function makePage(partial: Partial<Homepage> & { dimensions: Dimensions }
 }
 
 /** A board night holding these pages, with ids made to match the date. */
-export function night(date: string, pages: Homepage[], notCaptured: ScoreboardNight['not_captured'] = []): ScoreboardNight {
+export function night(
+  date: string,
+  pages: Homepage[],
+  notCaptured: ScoreboardNight['not_captured'] = [],
+  held: ScoreboardNight['held'] = [],
+): ScoreboardNight {
   return {
     date,
     generated_at: new Date(`${date}T13:00:00Z`),
     rubric_version: '1.0-draft',
     pages: pages.map((p) => ({ ...p, id: `${date}-${p.brand_slug}-home` })),
     not_captured: notCaptured,
+    held,
   };
 }
 

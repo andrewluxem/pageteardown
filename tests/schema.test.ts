@@ -101,9 +101,9 @@ describe('page fields', () => {
   it('accepts a null hero_headline (headline baked into an image)', () => {
     expect(ok(withPage({ hero_headline: null }))).toEqual([]);
   });
-  it('requires hero_headline to be stated, and non-empty when it is a string', () => {
-    const { hero_headline: _, ...rest } = page0;
-    expect(scoreboardSchema.safeParse({ ...good, pages: [rest] }).success).toBe(false);
+  it('accepts a page without hero_headline or primary_cta (left out, not null), and rejects an empty headline', () => {
+    const { hero_headline: _h, primary_cta: _c, ...rest } = page0;
+    expect(ok({ ...good, pages: [rest] })).toEqual([]);
     expect(scoreboardSchema.safeParse(withPage({ hero_headline: '' })).success).toBe(false);
   });
   it('accepts an optional subhead and a CTA with or without href, or no CTA', () => {
@@ -172,6 +172,21 @@ describe('night fields', () => {
   });
   it('rejects duplicate ids within a night', () => {
     expect(scoreboardSchema.safeParse({ ...good, pages: [page0, page0] }).success).toBe(false);
+  });
+});
+
+describe('held', () => {
+  const held = (brand_slug: string) => ({ brand: 'Brand Q (placeholder)', brand_slug, vertical: 'home' });
+  it('defaults to [] and accepts a brand with no wording of its own', () => {
+    expect((scoreboardSchema.parse(good) as ScoreboardNight).held).toEqual([]);
+    expect(ok({ ...good, held: [held('brand-q')] })).toEqual([]);
+    expect(scoreboardSchema.safeParse({ ...good, held: [{ ...held('brand-q'), reason: 'Score held for review.' }] }).success).toBe(false);
+  });
+  it('rejects a held brand that is also in pages or not_captured, or held twice', () => {
+    expect(issuePaths(scoreboardSchema.safeParse({ ...good, held: [held('brand-a')] }))).toEqual(['held.0.brand_slug']);
+    const both = scoreboardSchema.safeParse({ ...good, not_captured: [missed('brand-q')], held: [held('brand-q')] });
+    expect(issuePaths(both)).toEqual(['held.0.brand_slug']);
+    expect(scoreboardSchema.safeParse({ ...good, held: [held('brand-q'), held('brand-q')] }).success).toBe(false);
   });
 });
 

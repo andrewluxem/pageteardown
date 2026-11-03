@@ -26,6 +26,20 @@ describe('check names', () => {
     expect(isPublicCheckName('hp_cta_present')).toBe(false);
     expect(isPublicCheckName('Main button link is broken')).toBe(false);
   });
+  it('names the codebook 1.0-draft.11 value, copy, relevance and help path checks (D-046)', () => {
+    expect(CHECK_PUBLIC_NAMES).toMatchObject({
+      hp_value_concrete_benefit: 'Concrete benefit',
+      hp_value_brand_specific: 'Store-specific benefit',
+      hp_value_offer_terms: 'Offer terms',
+      hp_copy_own_words: 'Original wording',
+      hp_copy_no_typos: 'Typos',
+      hp_rel_no_account_assumed: 'Guest access',
+      hp_rel_locale_match: 'Currency and region',
+      hp_trust_help_path: 'Contact or help link',
+    });
+    // A terms link alone is not a help path, so the old name is gone.
+    expect(isPublicCheckName('Contact, help or terms link')).toBe(false);
+  });
   it('maps only homepage check_ids', () => {
     expect(Object.keys(CHECK_PUBLIC_NAMES).filter((id) => !/^hp_[a-z]+_[a-z0-9_]+$/.test(id))).toEqual([]);
   });
