@@ -16,6 +16,7 @@ const PAGES = [
   ['page-normal', '/page/2026-10-30-brand-a-home/'],
   ['page-hygiene-capped', '/page/2026-10-30-brand-j-home/'],
   ['page-image-headline', '/page/2026-10-30-brand-k-home/'],
+  ['page-after-popup', '/page/2026-10-30-brand-c-home/'],
   ['brand', '/brand/brand-o/'],
   ['methodology', '/methodology/'],
 ];

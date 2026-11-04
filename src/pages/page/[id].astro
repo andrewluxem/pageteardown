@@ -1,7 +1,10 @@
 ---
 // One homepage on one night. Phone first: the verdict leads, then the
 // screenshot and details, the eight dimensions and the checks. From 980px the
-// screenshot and details sit in a left column beside the rest.
+// screenshot and details sit in a left column beside the rest. A page whose
+// popup the capture closed has a second screenshot: the two are stacked on a
+// phone and side by side from 520px, captioned "First screen" and "After
+// closing the popup".
 import type { GetStaticPaths } from 'astro';
 import Base from '../../layouts/Base.astro';
 import Verdict from '../../components/Verdict.astro';
@@ -26,6 +29,8 @@ const { page } = Astro.props;
 const s = score(page);
 const night = formatMedium(page.night);
 const resultLabel: Record<CheckResult, string> = { pass: 'Pass', fail: 'Fail', unverified: 'Not verified' };
+const alt = `Screenshot of the ${page.brand} homepage on ${night}, phone, above the fold`;
+const after = page.screenshot_after_popup;
 ---
 <Base
   title={`${page.brand}: homepage scorecard, ${night}`}
@@ -43,15 +48,22 @@ const resultLabel: Record<CheckResult, string> = { pass: 'Pass', fail: 'Fail', u
   <p class="eyebrow">Homepage scorecard · {formatLong(page.night)}</p>
   <h1 class="display sc-title">{page.brand}</h1>
 
-  <div class="sc">
+  <div class:list={['sc', after && 'sc--two']}>
     <div class="sc-verdict"><Verdict page={page} /></div>
 
-    <div class="sc-side">
-      <PhoneShot
-        screenshot={page.screenshot}
-        alt={`Screenshot of the ${page.brand} homepage on ${night}, phone, above the fold`}
-        caption={`${night} · phone, above the fold`}
-      />
+    <div class:list={['sc-side', after && 'sc-side--two']}>
+      {after ? (
+        <div class="shots">
+          <PhoneShot screenshot={page.screenshot} alt={alt} caption="First screen" />
+          <PhoneShot
+            screenshot={after}
+            alt={`Screenshot of the ${page.brand} homepage on ${night} after closing the popup, phone, above the fold`}
+            caption="After closing the popup"
+          />
+        </div>
+      ) : (
+        <PhoneShot screenshot={page.screenshot} alt={alt} caption={`${night} · phone, above the fold`} />
+      )}
       <dl class="meta">
         <div><dt class="eyebrow">Homepage URL</dt><dd class="mono meta-url">{page.url}</dd></div>
         <div><dt class="eyebrow">Vertical</dt><dd>{verticalLabel(page.vertical)}</dd></div>
@@ -114,6 +126,7 @@ const resultLabel: Record<CheckResult, string> = { pass: 'Pass', fail: 'Fail', u
   .sc-h2 { margin-bottom: 10px; }
 
   .sc-side { display: grid; gap: 20px; }
+  .shots { display: grid; gap: 20px; }
   .meta { background: var(--surface); border: 1px solid var(--rule); }
   .meta > div { display: grid; gap: 2px; padding: 12px 16px; border-top: 1px solid var(--rule-2); }
   .meta > div:first-child { border-top: 0; }
@@ -141,9 +154,12 @@ const resultLabel: Record<CheckResult, string> = { pass: 'Pass', fail: 'Fail', u
 
   @media (min-width: 520px) {
     .meta > div { grid-template-columns: 112px minmax(0, 1fr); gap: 12px; }
+    .shots { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
   }
   @media (min-width: 760px) {
     .sc-side { grid-template-columns: 280px minmax(0, 1fr); align-items: start; }
+    .sc-side--two { grid-template-columns: minmax(0, 1fr); }
+    .sc-side--two .shots { max-width: 620px; }
   }
   @media (min-width: 980px) {
     .sc {
@@ -155,6 +171,7 @@ const resultLabel: Record<CheckResult, string> = { pass: 'Pass', fail: 'Fail', u
     }
     .sc-verdict { grid-area: verdict; }
     .sc-side { grid-area: side; grid-template-columns: minmax(0, 1fr); }
+    .sc--two { grid-template-columns: 460px minmax(0, 1fr); }
     .sc-dims { grid-area: dims; }
     .sc-checks { grid-area: checks; }
     .sc-foot { grid-area: foot; }

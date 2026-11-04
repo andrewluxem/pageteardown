@@ -73,3 +73,11 @@ export function screenshotSize(ref: string): Promise<Size> {
   }
   return p;
 }
+
+/**
+ * The board thumbnail: the screen after the capture closed a full-screen
+ * popup when the page has one, else the first screen.
+ */
+export function thumbnailShot(page: { screenshot: string | null; screenshot_after_popup?: string }): string | null {
+  return page.screenshot_after_popup ?? page.screenshot;
+}

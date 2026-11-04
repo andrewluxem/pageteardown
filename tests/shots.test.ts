@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { imageSize } from '../src/lib/shots';
+import { imageSize, thumbnailShot } from '../src/lib/shots';
 import { ROOT } from './helpers';
 
 const hex = (h: string) => Uint8Array.from(h.match(/../g)!.map((x) => parseInt(x, 16)));
@@ -25,5 +25,15 @@ describe('imageSize', () => {
     expect(size('placeholder-1.png')).toEqual({ width: 750, height: 1334 });
     expect(size('placeholder-2.png')).toEqual({ width: 1125, height: 2001 });
     expect(size('placeholder-3.png')).toEqual({ width: 750, height: 1334 });
+  });
+});
+
+describe('thumbnailShot', () => {
+  it('uses the screen after the popup was closed when the page has one', () => {
+    expect(thumbnailShot({ screenshot: '/shots/a.webp', screenshot_after_popup: '/shots/a-b.webp' })).toBe('/shots/a-b.webp');
+  });
+  it('else the first screen, or null', () => {
+    expect(thumbnailShot({ screenshot: '/shots/a.webp' })).toBe('/shots/a.webp');
+    expect(thumbnailShot({ screenshot: null })).toBeNull();
   });
 });

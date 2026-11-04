@@ -1,11 +1,12 @@
 ---
 // Compact scorecard for the board's best and worst pair: the only place on
-// the board with a screenshot thumbnail.
+// the board with a screenshot thumbnail, the screen after the popup was
+// closed when the page has one (thumbnailShot).
 import ScoreBadge from './ScoreBadge.astro';
 import { DIMENSIONS, HOMEPAGE_KINDS } from '../config/rubric';
 import { verticalLabel } from '../config/verticals';
 import { lowestDimension, score } from '../lib/scoring';
-import { FALLBACK_SIZE, screenshotSize } from '../lib/shots';
+import { FALLBACK_SIZE, screenshotSize, thumbnailShot } from '../lib/shots';
 import type { Homepage } from '../lib/schemas';
 
 interface Props {
@@ -18,11 +19,12 @@ interface Props {
 const { page, label, tone = 'plain', headingLevel: H = 'h3' } = Astro.props;
 const s = score(page);
 const low = lowestDimension(page);
-const size = page.screenshot ? await screenshotSize(page.screenshot) : FALLBACK_SIZE;
+const thumb = thumbnailShot(page);
+const size = thumb ? await screenshotSize(thumb) : FALLBACK_SIZE;
 ---
 <article class:list={['mini', `mini--${tone}`]}>
   <div class="mini-thumb" style={`aspect-ratio: ${size.width} / ${size.height}`}>
-    {page.screenshot ? <img src={page.screenshot} alt="" width={size.width} height={size.height} loading="lazy" decoding="async" /> : null}
+    {thumb ? <img src={thumb} alt="" width={size.width} height={size.height} loading="lazy" decoding="async" /> : null}
   </div>
   <div class="mini-body">
     {label && <p class="eyebrow">{label}</p>}
