@@ -130,6 +130,16 @@ const homepageBase = z.strictObject({
     )
     .nullable()
     .default(null),
+  // The same first screen after the capture closed a full-screen popup, on a
+  // page whose popup it closed; other pages leave it out. Same rule as
+  // screenshot, and it needs one.
+  screenshot_after_popup: z
+    .string()
+    .refine(
+      isScreenshotRef,
+      `screenshot_after_popup must be a path under /shots/ or an https URL on ${BLOB_HOST}`,
+    )
+    .optional(),
   // Set when a score was changed after publication; shown on the scorecard.
   correction: z
     .strictObject({
@@ -145,6 +155,13 @@ const homepageBase = z.strictObject({
  * failed check with a non-empty detail. A cap with no evidence fails the build.
  */
 export const homepageSchema = homepageBase.superRefine((p, ctx) => {
+  if (p.screenshot_after_popup !== undefined && p.screenshot === null) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['screenshot_after_popup'],
+      message: 'screenshot_after_popup needs a screenshot (the first screen)',
+    });
+  }
   const capped = CAPPING_DIMENSIONS.filter((k) => p.dimensions[k].score === 1);
   if (!capped.length) return;
   const evidenced = p.checks.some((c) => c.result === 'fail' && (c.detail ?? '').trim().length > 0);

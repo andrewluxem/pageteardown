@@ -45,6 +45,7 @@ pages:                              # at least one
       - { name: Other links, result: unverified, detail: "HTTP 403 on two attempts" }
       - { name: Page load, result: pass }
     screenshot: null                   # or https://jvx7f1mxqao2jbqs.public.blob.vercel-storage.com/... (or "/shots/<file>" for fixtures)
+    screenshot_after_popup: https://jvx7f1mxqao2jbqs.public.blob.vercel-storage.com/shots/2026-11-02/kestrel-outdoor-home-b.webp   # optional; only where the capture closed a full-screen popup
     correction:                        # optional; set when a published score changes
       date: 2026-11-04
       note: "Technical hygiene raised from 1 to 3: the link resolved on a recheck the same night."
@@ -91,6 +92,14 @@ Rules:
   Real screenshots live in that store and are referenced by URL, never
   committed. The capture is the 375x667 phone viewport at 2x (750x1334) or 3x
   (1125x2001).
+- `screenshot_after_popup` is optional: the same first screen after the
+  capture closed a full-screen popup. Only a page whose popup the capture
+  closed carries it; every other page leaves it out (never `null`). The host
+  rule is the same as `screenshot`'s, and a page with it must have a
+  `screenshot`. The scorecard then shows both, captioned "First screen" and
+  "After closing the popup", side by side from 520px and stacked on a phone,
+  and the board's best and lowest cards use it as their thumbnail. A page
+  without it keeps the single screenshot.
 - `correction` is optional. When present, the scorecard shows "Corrected
   {date}: {note}" in the verdict block. Update the dimension scores themselves
   to the corrected values.
@@ -235,6 +244,7 @@ D-046 in page-scoreboard's `docs/decisions.md`.
 | check results, by `check_id` | `checks[]`: `name` from `CHECK_PUBLIC_NAMES`, `result` from the status, `detail` from the judge evidence |
 | codebook version | `rubric_version` (see Rubric version) |
 | screenshot URL in the public store | `screenshot` |
+| state B phone fold (`fold-mobile-b.webp`) URL in the public store, on a page whose layer the capture dismissed | `screenshot_after_popup` |
 | a page with pending check review | `held` |
 
 - **Dimensions.** The codebook's eight dimensions are the rubric's slugs, the
@@ -255,8 +265,9 @@ D-046 in page-scoreboard's `docs/decisions.md`.
 - **State B.** Where the capture dismissed a full-screen popup, the content
   checks are judged on the screen after the dismissal (rubric "Scored
   screen"). Their details, and the evidence quoted from them in notes, start
-  with "After closing the popup: ", because the screenshot shown is the screen
-  before it.
+  with "After closing the popup: ", because `screenshot` is the screen before
+  it. The screen after it is `screenshot_after_popup`, uploaded from
+  `fold-mobile-b.webp` as `shots/<date>/<brand>-home-b.webp` (D-048).
 - **Homepage kind.** A fixed map per brand in page-scoreboard
   `data/homepage-kinds.json`, describing the brand's usual homepage, not one
   night's hero. A captured brand missing from the map refuses the export.
