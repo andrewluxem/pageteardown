@@ -99,7 +99,7 @@ apply migrations before any function change that needs them.
 
 ## Commands
 
-Requires Node 22+.
+Requires Node 24 (the version CI, Vercel and the nightly publisher run).
 
 | Command | What it does |
 |---|---|
