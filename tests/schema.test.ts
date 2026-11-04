@@ -159,6 +159,34 @@ describe('page fields', () => {
   );
 });
 
+describe('screenshot_after_popup', () => {
+  const blob = (f: string) => `https://jvx7f1mxqao2jbqs.public.blob.vercel-storage.com/shots/2026-10-30/${f}`;
+  it('is optional and left out when absent', () => {
+    const r = scoreboardSchema.safeParse(withPage({ screenshot: blob('brand-a-home.webp') }));
+    expect(r.success && 'screenshot_after_popup' in r.data.pages[0]!).toBe(false);
+  });
+  it('accepts the same refs as screenshot', () => {
+    for (const v of [blob('brand-a-home-b.webp'), '/shots/fixtures/placeholder-1.png']) {
+      expect(ok(withPage({ screenshot: blob('brand-a-home.webp'), screenshot_after_popup: v })), v).toEqual([]);
+    }
+  });
+  it.each([
+    'https://abc123.public.blob.vercel-storage.com/shots/2026-10-30/brand-a-home-b.webp',
+    'http://jvx7f1mxqao2jbqs.public.blob.vercel-storage.com/shots/2026-10-30/brand-a-home-b.webp',
+    'https://example.com/a.webp',
+    '',
+    null,
+  ])('rejects %j', (screenshot_after_popup) => {
+    expect(scoreboardSchema.safeParse(withPage({ screenshot: blob('brand-a-home.webp'), screenshot_after_popup })).success).toBe(false);
+  });
+  it('needs a first-screen screenshot', () => {
+    const issues = ok(withPage({ screenshot: null, screenshot_after_popup: blob('brand-a-home-b.webp') }));
+    expect(issues.map((i) => `${i.path.join('.')}: ${i.message}`)).toEqual([
+      'pages.0.screenshot_after_popup: screenshot_after_popup needs a screenshot (the first screen)',
+    ]);
+  });
+});
+
 describe('night fields', () => {
   it('requires at least one page', () => {
     expect(scoreboardSchema.safeParse({ ...good, pages: [] }).success).toBe(false);
